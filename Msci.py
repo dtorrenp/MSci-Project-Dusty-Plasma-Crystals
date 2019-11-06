@@ -93,8 +93,8 @@ root = 1e-14#defined preciscion of root finding method used to get dust charge
 S = 0.95
 dt_init = 1e-6#time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 eps = 1e-7
-dust_grain_max = 6#dust grain max number
-frames = 1e5#number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+dust_grain_max = 3#dust grain max number
+frames = 1e4#number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 time_list = [0]
 
 #%%
@@ -203,7 +203,7 @@ class Dust_Container:
         
         for i in self.Dust_grain_list:
             """advance via the rk4 and add the predicted postiosn to the momentary list """
-            print(i.W_vec[0],i.W_vec[1],i.W_vec[2])
+            #print(i.W_vec[0],i.W_vec[1],i.W_vec[2])
             new_data = i.step_rk45(self.dt)
             i.time_list.append(time_list[-1]+self.dt)
             new_W_vec_list.append(new_data[0])
