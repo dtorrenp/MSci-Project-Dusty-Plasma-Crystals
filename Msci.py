@@ -264,7 +264,7 @@ class Dust_grain(Dust_Container):
             rad_force_mag = (self.charge/self.mass)*k_r_restore*np.abs(radial - r_se_inv)
             vx_diff_new = rad_force_mag*(W_vec_f[0]/radial) - (alpha*W_vec_f[3])/self.mass + self.a_c[0] + (W_vec_f[0]/radial)*a_i_r #drag, sheathe and coloumb force and ion drag force
             vy_diff_new = rad_force_mag*(W_vec_f[1]/radial) - (alpha*W_vec_f[4])/self.mass + self.a_c[1] + (W_vec_f[1]/radial)*a_i_r
-            #print("x accel = ",rad_force_mag*(W_vec_f[0]/radial),- (alpha*W_vec_f[3])/self.mass,+ (W_vec_f[0]/radial)*a_i_r)
+            print("x accel = ",rad_force_mag*(W_vec_f[0]/radial),- (alpha*W_vec_f[3])/self.mass,+ (W_vec_f[0]/radial)*a_i_r)
         if W_vec_f[2] > z_se:
             vz_diff_new = - g_z - (alpha*W_vec_f[5])/self.mass + self.a_c[2]#drag, gravity, coloumb force and ion drag force
         else:
@@ -303,12 +303,13 @@ class Dust_grain(Dust_Container):
         return k_4
     
     def step(self):
+        
         k1 = self.k_1()
         k2 = self.k_2(k1)
         k3 = self.k_3(k2)
         k4 = self.k_4(k3)
-        self.W_vec = self.W_vec + (k1 + 2*k2 + 2*k3 + k4)/6
-    
+        print("hi")
+        self.W_vec += (k1 + 2*k2 + 2*k3 + k4)/6    
 #    def k_1_45(self,dt):
 #        return dt*self.f_der(self.W_vec)
 #    

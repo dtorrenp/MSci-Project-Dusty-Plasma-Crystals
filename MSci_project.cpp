@@ -104,17 +104,17 @@ class Dust_grain{
     
     void prod_W_vec(){
         //when creating new dust grains gives them random x,y positions so the dust grains dont just stack on 0,0//
-        W_vec.push_back(-container_radius/6 + (rand()/(RAND_MAX + 1))*container_radius/3);//create random number centred about 0 with width container_radius/3
-        W_vec.push_back(-container_radius/6 + (rand()/(RAND_MAX + 1))*container_radius/3);
+        W_vec.push_back(-container_radius/6.0 + (rand()/(RAND_MAX + 1.0))*container_radius/3.0);//create random number centred about 0 with width container_radius/3
+        W_vec.push_back(-container_radius/6.0 + (rand()/(RAND_MAX + 1.0))*container_radius/3.0);
         W_vec.push_back(container_height);
-        W_vec.push_back(rand()*2e-10 - 1e-10);
-        W_vec.push_back(rand()*2e-10 - 1e-10);
-        W_vec.push_back(rand()*2e-10 - 1e-10);
+        W_vec.push_back((rand()/(RAND_MAX + 1.0))*2.0e-12 - 1.0e-12);
+        W_vec.push_back((rand()/(RAND_MAX + 1.0))*2.0e-12 - 1.0e-12);
+        W_vec.push_back((rand()/(RAND_MAX + 1.0))*2.0e-12 - 1.0e-12);
         x_history.push_back(W_vec[0]/lambda_D);
         y_history.push_back(W_vec[1]/lambda_D);
         z_history.push_back(W_vec[2]/lambda_D);
 
-        cout << "W_vec = " << W_vec[0]/lambda_D << "," << W_vec[1]/lambda_D << "," << W_vec[2]/lambda_D << "," << W_vec[3] << ","  << W_vec[4] << ","  << W_vec[5] << endl;
+        //cout << "W_vec = " << W_vec[0]/lambda_D << "," << W_vec[1]/lambda_D << "," << W_vec[2]/lambda_D << "," << W_vec[3] << ","  << W_vec[4] << ","  << W_vec[5] << endl;
     }
 
     vector<double> f_der(vector<double> W_vec_f){
@@ -129,13 +129,26 @@ class Dust_grain{
         //x,y components
         if (radial < r_se_inv){
             vx_diff_new = - (alpha*W_vec_f[3])/mass + a_c[0];//drag and coloumb force
-            vy_diff_new = - (alpha*W_vec_f[4])/mass + a_c[1];//FIX THIISSSSSSSS
+            vy_diff_new = - (alpha*W_vec_f[4])/mass + a_c[1];
         }
         else{
             double v_i_r = pow(v_B,2) + pow((i_charge*k_r_restore*pow((abs(radial - r_se_inv)),2)/m_i),0.5);
+
+            //cout << "abs:" << radial - r_se_inv << "," << abs(radial - r_se_inv) << endl;
+
             double a_i_r = (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_r,2))/mass;
             double rad_force_mag = (charge/mass)*k_r_restore*abs(radial - r_se_inv);
+
+            //cout << "heeyyy" << endl;
+            //cout << "rad_force_mag sheathe:" << rad_force_mag << endl;
+            //cout << "drag:" << (alpha*W_vec_f[3])/mass << endl;
+            //cout << "inter particle:" <<  a_c[0] << endl;
+            //cout << "ion drag:" << (W_vec_f[0]/radial)*a_i_r << endl;
+            
+
             vx_diff_new = rad_force_mag*(W_vec_f[0]/radial) - (alpha*W_vec_f[3])/mass + a_c[0] + (W_vec_f[0]/radial)*a_i_r;//drag, sheathe and coloumb force and ion drag force
+            cout << "x accel" << rad_force_mag*(W_vec_f[0]/radial) << "," << - (alpha*W_vec_f[3])/mass << "," << (W_vec_f[0]/radial)*a_i_r << endl;
+
             vy_diff_new = rad_force_mag*(W_vec_f[1]/radial) - (alpha*W_vec_f[4])/mass + a_c[1] + (W_vec_f[1]/radial)*a_i_r;
         }
 
@@ -143,7 +156,7 @@ class Dust_grain{
             vz_diff_new = - g_z - (alpha*W_vec_f[5])/mass + a_c[2];//drag, gravity, coloumb force and ion drag force
         }
         else{
-            double v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2*g_z*(W_vec_f[2] - z_se)),0.5);
+            double v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2.0*g_z*(W_vec_f[2] - z_se)),0.5);
             vz_diff_new = (charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z,2))/mass;//drag, sheathe, gravity, coloumb force and ion drag force;
         }
 
@@ -155,29 +168,29 @@ class Dust_grain{
     
     vector<double> k_1(){
         vector<double> res = f_der(W_vec);
-        vector<double> k_1 = element_mul(res,dt);
-        return k_1;
+        vector<double> k_1_v = element_mul(res,dt);
+        return k_1_v;
     }
     
     vector<double> k_2(vector<double> k_1){
         vector<double> W_vec_k2 = element_add(W_vec,element_mul(k_1,1/2) );
         vector<double> res = f_der(W_vec_k2);
-        vector<double> k_2 = element_mul(res,dt);
-        return k_2;
+        vector<double> k_2_v = element_mul(res,dt);
+        return k_2_v;
     }
     
     vector<double> k_3(vector<double> k_2){
         vector<double> W_vec_k3 = element_add(W_vec,element_mul(k_2,1/2));
         vector<double> res = f_der(W_vec_k3);
-        vector<double> k_3 = element_mul(res,dt);
-        return k_3;
+        vector<double> k_3_v = element_mul(res,dt);
+        return k_3_v;
     }
     
     vector<double> k_4(vector<double> k_3){
         vector<double> W_vec_k4 = element_add(W_vec,k_3);
         vector<double> res = f_der(W_vec_k4);
-        vector<double> k_4 = element_mul(res,dt);
-        return k_4;
+        vector<double> k_4_v = element_mul(res,dt);
+        return k_4_v;
     }
     
     void step(){
@@ -186,10 +199,12 @@ class Dust_grain{
         vector<double> k3 = k_3(k2);
         vector<double> k4 = k_4(k3);
 
+        cout << "hi" << endl;
         //cout << "k1 = " <<k1[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
         //cout << "k2 = " <<k2[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
         //cout << "k3 = " <<k3[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
         //cout << "k4 = " <<k4[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
+
         W_vec = element_add(W_vec,element_mul(element_add(element_add(    element_add(k1,element_mul(k2,2)) ,element_mul(k3,2)      ),k4),1.0/6.0));
 
         //cout << "W_vec = " << W_vec[0]/lambda_D << "," << W_vec[1]/lambda_D << "," << W_vec[2]/lambda_D << "," << W_vec[3] << ","  << W_vec[4] << ","  << W_vec[5] << endl;
