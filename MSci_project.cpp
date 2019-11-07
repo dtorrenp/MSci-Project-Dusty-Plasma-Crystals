@@ -52,26 +52,26 @@ const double k_r_restore = -2*phi_wall_r/pow(r_se,2);
 const double v_B = pow((k_b*T_e/m_i),0.5);
 
 const double alpha = 1e-9;//drag coefficient
-vector<double> time_list;
+
 const double root = 1e-14;//preciscion of root finding method used to get dust charge
 
 const double dt = 1e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
-const double dust_grain_max = 3;//dust grain max number
-const double frames = 1e2;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+const double dust_grain_max = 5;//dust grain max number
+const double frames = 1e5;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 const double speed_min = 1e-15;
 const bool for_run = true;
 
 //make functions for element-wise multiplication and addition of vectors
-vector<double> element_mul(vector<double>& a,double cst){
-    vector<double>& c;
+vector<double> element_mul(const vector<double>& a,double cst){
+    vector<double> c;
     for(int i=0; i<a.size(); i++){
         c.push_back(a[i]*cst);
     }
     return c;
 }
 
-vector<double> element_add(vector<double>& a,vector<double>& b){
-    vector<double>& c;
+vector<double> element_add(const vector<double>& a,const vector<double>& b){
+    vector<double> c;
     for(int i=0; i<a.size(); i++){
         c.push_back(a[i] + b[i]);
     }
@@ -91,33 +91,30 @@ class Dust_grain{
 
     vector<double>W_vec;
     vector<double>a_c;
-    vector<double>time_list;
+    vector<double>time_list_dust;
     bool to_be_deleted;
     vector<double> x_history;
     vector<double> y_history;
     vector<double> z_history;
 
-    Dust_grain(double m , double grain_r , double q, double time_init){
-        mass = m;
-        grain_R = grain_r;
-        charge = q;
-        prod_W_vec();
-        a_c = {0,0,0};
-        time_list = {time_init};
-        to_be_deleted = false;
-        x_history = {W_vec[0]/lambda_D};
-        y_history = {W_vec[1]/lambda_D};
-        z_history = {W_vec[2]/lambda_D};
+    Dust_grain(double m , double grain_r , double q, double time_init):mass(m),grain_R(grain_r),charge(q),a_c{0,0,0},time_list_dust{time_init},to_be_deleted(false)
+    {
+        prod_W_vec();        
     }
     
     void prod_W_vec(){
         //when creating new dust grains gives them random x,y positions so the dust grains dont just stack on 0,0//
-        W_vec.push_back(-container_radius/6 + random()*container_radius/3);//create random number centred about 0 with width container_radius/3
-        W_vec.push_back(-container_radius/6 + random()*container_radius/3);
+        W_vec.push_back(-container_radius/6 + (rand()/(RAND_MAX + 1))*container_radius/3);//create random number centred about 0 with width container_radius/3
+        W_vec.push_back(-container_radius/6 + (rand()/(RAND_MAX + 1))*container_radius/3);
         W_vec.push_back(container_height);
-        W_vec.push_back(random()*2e-10 - 1e-10);
-        W_vec.push_back(random()*2e-10 - 1e-10);
-        W_vec.push_back(random()*2e-10 - 1e-10);
+        W_vec.push_back(rand()*2e-10 - 1e-10);
+        W_vec.push_back(rand()*2e-10 - 1e-10);
+        W_vec.push_back(rand()*2e-10 - 1e-10);
+        x_history.push_back(W_vec[0]/lambda_D);
+        y_history.push_back(W_vec[1]/lambda_D);
+        z_history.push_back(W_vec[2]/lambda_D);
+
+        cout << "W_vec = " << W_vec[0]/lambda_D << "," << W_vec[1]/lambda_D << "," << W_vec[2]/lambda_D << "," << W_vec[3] << ","  << W_vec[4] << ","  << W_vec[5] << endl;
     }
 
     vector<double> f_der(vector<double> W_vec_f){
@@ -158,7 +155,7 @@ class Dust_grain{
     
     vector<double> k_1(){
         vector<double> res = f_der(W_vec);
-        vector<double> k_1 = element_mul(k_1,dt);
+        vector<double> k_1 = element_mul(res,dt);
         return k_1;
     }
     
@@ -188,7 +185,14 @@ class Dust_grain{
         vector<double> k2 = k_2(k1);
         vector<double> k3 = k_3(k2);
         vector<double> k4 = k_4(k3);
-        W_vec = element_add(W_vec,element_mul(element_add(element_add(element_add(k1,element_mul(k2,2)),element_mul(k3,2)),k4),1/6));
+
+        //cout << "k1 = " <<k1[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
+        //cout << "k2 = " <<k2[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
+        //cout << "k3 = " <<k3[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
+        //cout << "k4 = " <<k4[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
+        W_vec = element_add(W_vec,element_mul(element_add(element_add(    element_add(k1,element_mul(k2,2)) ,element_mul(k3,2)      ),k4),1.0/6.0));
+
+        //cout << "W_vec = " << W_vec[0]/lambda_D << "," << W_vec[1]/lambda_D << "," << W_vec[2]/lambda_D << "," << W_vec[3] << ","  << W_vec[4] << ","  << W_vec[5] << endl;
     }
 };
 
@@ -203,16 +207,13 @@ class Dust_Container{
     double phi_grain;
 
     public:
-
+	vector<double> time_list;
     vector<Dust_grain> Dust_grain_list;
 
-    Dust_Container(double container_radius, double container_height, double m_D, double grain_R){
-            container_radius = container_radius;
-            container_height = container_height;
-            m_D = m_D;
-            grain_R = grain_R;
+	Dust_Container(double container_Radius, double container_Height, double M_D, double Grain_R) :time_list{0},container_radius(container_Radius), container_height(container_Height), m_D(M_D), grain_R(Grain_R)
+    {
             phi_grain = OML_find_surface_potential();
-            Dust_grain_list = {Dust_grain(m_D , grain_R , produce_q_D(), time_list.back())};
+            Dust_grain_list = {Dust_grain(m_D , grain_R , produce_q_D(), 0)};
             //double comb_list = list(it.combinations(self.Dust_grain_list,2))
     } 
 
@@ -282,15 +283,19 @@ class Dust_Container{
     void next_frame(){
     //The big daddy of the code, this functions loops over advancing the simulation by a time step dt
         //inter_particle_ca()
-            
+
+		time_list.push_back(time_list.back() + dt);
+
         for (int i = 0; i < Dust_grain_list.size(); i+=1){
             //advance via the rk4 and add the predicted postiosn to the momentary list
             Dust_grain_list[i].step();
-            Dust_grain_list[i].time_list.push_back(time_list.back()+ dt);
+            Dust_grain_list[i].time_list_dust.push_back(time_list.back()+ dt);
             Dust_grain_list[i].a_c = {0,0,0};//NOT SURE ABOUT THIS
             Dust_grain_list[i].x_history.push_back(Dust_grain_list[i].W_vec[0]/lambda_D);
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
+
+            //cout << Dust_grain_list[i].W_vec[0]/lambda_D << "," << Dust_grain_list[i].W_vec[1]/lambda_D << "," << Dust_grain_list[i].W_vec[2]/lambda_D << endl;
 
             if ( (i == (Dust_grain_list.size() - 1)) && (Dust_grain_list[i].W_vec[2] < z_se) && (Dust_grain_list.size() < dust_grain_max) ){
                 //""" if the last dust grain added has reached the lower sheathe electrode add another dust grain unless we have reached the dust grain number cap"""
@@ -300,14 +305,12 @@ class Dust_Container{
         }
     }
 };
-
 int main(){
     //create the dusty plasma container
     Dust_Container Dusty_plasma_crystal = Dust_Container(container_radius, container_height, m_D, grain_R);
     if (for_run){
         for(int i = 0; i < frames; i++){
             //""" do the loop advancing by dt each time"""
-            time_list.push_back(time_list.back()+ dt);
             Dusty_plasma_crystal.next_frame();
         }
     }
@@ -328,14 +331,13 @@ int main(){
     //
 
     ofstream outputFile;
-    string filename = "exampleOutput.csv";
     outputFile.open("test_csv.csv");
     outputFile << "X" << "," << "Y" << "," << "Z" << "," << "VX" << "," << "VY" << "," << "VZ" << endl;
     for(int i = 0; i < Dusty_plasma_crystal.Dust_grain_list.size(); i++){
-	    outputFile << "[" << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[0] << "," << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[1] << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[2] << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[3] << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[4] << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[5] << "]" << endl;
+	    outputFile << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[0]/lambda_D << "," << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[1]/lambda_D << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[2]/lambda_D << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[3] << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[4] << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[5] << endl;
     }
     outputFile.close();
-
+	
     return 0;
 }
 

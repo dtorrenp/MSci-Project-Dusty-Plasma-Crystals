@@ -102,9 +102,9 @@ root = 1e-14#defined preciscion of root finding method used to get dust charge
 
 dt = 1e-4#time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 #eps = 1e-7
-dust_grain_max = 5#dust grain max number
-frames = 1e3#number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-speed_min = 1e-15
+dust_grain_max = 5 #dust grain max number
+frames = 1e5 #number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+temp_min = 1e-5#minimum temperature for it to stop
 for_run = True
 print("for_run =",for_run)
 
@@ -120,7 +120,9 @@ class Dust_Container:
             self.init_W_vec = np.array([0,0,self.container_height,0,0,0])#its dumb but need inital vector for first dust grain W_vec = [x,y,z,vx,vy,vz]
             self.phi_grain = self.OML_find_surface_potential()#defined surface potential of the dust grains, this is a properties of the plasma not the dust grain(however the dust grain charge is a property of the dust grain as it requires radius of dust grain)
             self.Dust_grain_list = np.array([Dust_grain(self.m_D , self.grain_R , self.produce_q_D() , self.prod_W_vec(), time_list[-1])])#create the first dust grain
+            self.v_squared_sum = (self.Dust_grain_list[0].calc_speed())**2
             self.comb_list = list(it.combinations(self.Dust_grain_list,2))
+            self.temperature = 0
     
     def OML_find_surface_potential(self):
         """Find the dust grain sufrace potential using OML model"""
@@ -172,23 +174,12 @@ class Dust_Container:
         z_0 = self.container_height
         vx_0 = random.random()*2e-10 - 1e-10
         vy_0 = random.random()*2e-10 - 1e-10
-        vz_0 = random.random()*2e-10 - 1e-10
+        vz_0 = random.random()*2e-8 - 1e-8
         #print("dust_init_pos=",x_0/lambda_D,y_0/lambda_D,self.container_height/lambda_D)
         return np.array([x_0,y_0,z_0,vx_0,vy_0,vz_0])#W_vec
     
-#    def get_dust_list(self):
-#        """You cant access atributes (dust grain list) of a parent class (Dust container) in a child class (Dust_grain) but you can use its methods, so create method to get attribute, i know, its dumb af """
-#        a = np.copy(self.Dust_grain_list)
-#        return a
-#    
-    def calc_average_speed(self):
-        speed = 0
-        for i in self.Dust_grain_list:
-            a = i.W_vec[3:6]
-            b = np.linalg.norm(a)
-            speed += b 
-        return speed/len(self.Dust_grain_list)
-        
+    def calc_temperature(self):
+        self.temperature = self.m_D*(self.v_squared_sum/len(self.Dust_grain_list))/(3*k_b)
     
     def inter_particle_ca(self):
         for i in self.comb_list:
@@ -211,11 +202,15 @@ class Dust_Container:
             self.Dust_grain_list[i].x_history.append(self.Dust_grain_list[i].W_vec[0]/lambda_D)#add the new postions to the history file
             self.Dust_grain_list[i].y_history.append(self.Dust_grain_list[i].W_vec[1]/lambda_D)
             self.Dust_grain_list[i].z_history.append(self.Dust_grain_list[i].W_vec[2]/lambda_D)
+            self.v_squared_sum += (self.Dust_grain_list[i].calc_speed())**2
 
             if (self.Dust_grain_list[-1] == self.Dust_grain_list[i]) and (self.Dust_grain_list[i].W_vec[2] < z_se) and (len(self.Dust_grain_list) < dust_grain_max):
                 """ if the last dust grain added has reached the lower sheathe electrode add another dust grain unless we have reached the dust grain number cap"""
                 self.Dust_grain_list = np.append(self.Dust_grain_list,Dust_grain(self.m_D , self.grain_R , self.produce_q_D() , self.prod_W_vec(),time_list[-1]))
                 self.comb_list = list(it.combinations(self.Dust_grain_list,2))
+        self.calc_temperature()
+        self.v_squared_sum = 0
+
                 
 #            if (self.Dust_grain_list[i].W_vec[2] <= self.Dust_grain_list[i].grain_R) or ((self.container_radius - (self.Dust_grain_list[i].W_vec[0]**2 + self.Dust_grain_list[i].W_vec[1]**2)**0.5) <= self.Dust_grain_list[i].grain_R):
 #                """if statements checks whether grain is within a radius of the container walls, its never got there so not sure if the code acutally works"""
@@ -246,7 +241,10 @@ class Dust_grain(Dust_Container):
          self.x_history = [self.W_vec[0]/lambda_D]#records all x,yz positosn of the dust grain over history
          self.y_history = [self.W_vec[1]/lambda_D]
          self.z_history = [self.W_vec[2]/lambda_D]
-         
+    
+    def calc_speed(self):
+        return np.linalg.norm(self.W_vec[3:6])
+
     """lots of rk4 stuff below, start at the bottom then work your way up, if you know what i mean... """
     
     def f_der(self, W_vec_f):
@@ -376,15 +374,17 @@ if for_run:
         time_list.append(time_list[-1]+ dt)
         Dusty_plasma_crystal.next_frame()
 else:
-    Dust_average_speed = Dusty_plasma_crystal.calc_average_speed()
+    #Dust_average_speed = Dusty_plasma_crystal.calc_average_speed()
+    Dusty_plasma_crystal.calc_temperature()
     while((len(Dusty_plasma_crystal.Dust_grain_list) <= dust_grain_max) and (len(time_list) < frames)):
-        Dust_average_speed = Dusty_plasma_crystal.calc_average_speed()
-        #print(Dust_average_speed)
-        if (Dust_average_speed < speed_min):
+        if ( (Dusty_plasma_crystal.temperature < temp_min) and (len(Dusty_plasma_crystal.Dust_grain_list) == dust_grain_max) ):
             break
         time_list.append(time_list[-1]+ dt)
         Dusty_plasma_crystal.next_frame()
-    
+
+print("heeyyy")
+print(Dusty_plasma_crystal.temperature)
+
 """get data out"""
 Final_conditions_dust_grains = Dusty_plasma_crystal.Dust_grain_list
 vel_list = []
@@ -392,30 +392,30 @@ for i in np.arange(len(Final_conditions_dust_grains)):
     vel_list.append([Final_conditions_dust_grains[i].W_vec[3:6]])
     
 #%%
-"""circle shit"""
+
 theta = np.linspace(0, 2*np.pi, 100)
 x_r_se = r_se_inv/lambda_D*np.cos(theta)
 y_r_se = r_se_inv/lambda_D*np.sin(theta)
 x_r_wall = container_radius/lambda_D*np.cos(theta)
 y_r_wall = container_radius/lambda_D*np.sin(theta)
 
-"""Horizon z_se"""
+
 y_z_se = [z_se/lambda_D]*len(time_list)
 
-#"""Voronoi data out, only 2d"""
+
 #vor_pos_list = []
 #for i in np.arange(len(Final_conditions_dust_grains)):
 #    vor_pos_list.append([Final_conditions_dust_grains[i].x_history[-1],Final_conditions_dust_grains[i].y_history[-1]])
 #vor = Voronoi(vor_pos_list)
 
-#"""Delaunay Tirangulation """
+
 #tri_pos_list = []
 #for i in np.arange(len(Final_conditions_dust_grains)):
 #    tri_pos_list.append([Final_conditions_dust_grains[i].x_history[-1],Final_conditions_dust_grains[i].y_history[-1],Final_conditions_dust_grains[i].z_history[-1]])
 #tri = Delaunay(tri_pos_list)
 
 #%%
-"""plot motion of the dust grains"""
+
 plt.figure(1)
 plt.title("test")
 for i in np.arange(len(Final_conditions_dust_grains)):
@@ -466,7 +466,6 @@ plt.plot(time_list,y_z_se, "--", color = "black")
 #plt.plot(xs, horiz_line_data, 'r--') 
 plt.ylim(0,container_height/lambda_D)
 plt.grid()
-plt.show()
 
 plt.figure(5)
 plt.title("Final Positions")
@@ -487,7 +486,7 @@ for i in np.arange(len(Final_conditions_dust_grains)):
     ax.scatter(Final_conditions_dust_grains[i].x_history[-1], Final_conditions_dust_grains[i].y_history[-1], Final_conditions_dust_grains[i].z_history[-1])
 ax.set_xlabel('X position')
 ax.set_ylabel('Y position')
-ax.set_zlabel('Z position')
+ax.set_zlabel('Z position') 
 
 #"""Voronoi plot out, only 2d"""
 #voronoi_plot_2d(vor)
@@ -495,8 +494,6 @@ ax.set_zlabel('Z position')
 #"""Delaunay tesselation"""
 ##plt.triplot(tri_pos_list[:,0], tri_pos_list[:,1], tri.simplices.copy())
 ##plt.plot(tri_pos_list[:,0], tri_pos_list[:,1], 'o')
-
-plt.show()
 
 print("steps = ",len(time_list))
 print("Dust Grains =", len(Final_conditions_dust_grains))
@@ -506,3 +503,6 @@ print("time elapsed = ", time_list[-1],"s")
 #%%
 """prints time taken in minutes"""
 print ("time taken: %s minutes" % ((time.time()-start_time)/60))
+
+#%%
+plt.show()
