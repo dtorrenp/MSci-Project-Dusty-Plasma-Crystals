@@ -71,9 +71,11 @@ epsilon_0 = 8.85*1e-12
 k_b = 1.38*1e-23
 mu = (m_i/m_e)#normalization used for convienience
 
-beta = 10**-1#T_i/T_e
-T_e = 1e2
+beta = 1.5*1e-2#T_i/T_e
+T_e = (2*1.6*1e-19)/k_b
+print("T_e = ",T_e)
 T_i = T_e*beta#defined a bit wierdly but basically just in terms of beta and T_e
+print("T_i = ",T_i)
 v_i = (2*k_b*T_i/m_i)**(1/2)
 Z = 1#atomic number??
 a_0 = 1#intial guess for halley's method
@@ -81,6 +83,7 @@ a_0 = 1#intial guess for halley's method
 lambda_de = ((epsilon_0*k_b*T_e)/(n_e0*(e_charge**2)))**0.5
 lambda_di = ((epsilon_0*k_b*T_i)/(n_i0*(e_charge**2)))**0.5
 lambda_D = (1/(1/(lambda_de**2) + 1/(lambda_di**2)))**0.5#get lambda_D
+print("lambda_D =",lambda_D )
 
 container_height = 11*lambda_D#drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 container_radius = 100*lambda_D#set radius of contianer ie wall radius
@@ -89,6 +92,7 @@ r_se = 100*lambda_D#distance from wall to the sheathe edge
 r_se_inv = container_radius - r_se
 
 wake_potential_below = 0.5*lambda_D
+wake_charge_multiplier = 1e-3
 
 phi_wall_z = -100 #volts
 phi_wall_r = -1 #volts
@@ -96,6 +100,7 @@ k_z_restore = -2*phi_wall_z/z_se**2#WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K 
 k_r_restore = -2*phi_wall_r/r_se**2
 
 v_B = (k_b*T_e/m_i)**0.5
+print("v_B =",v_B)
 
 alpha = 1e-9#drag coefficient
 time_list = [0]
@@ -104,8 +109,10 @@ root = 1e-14#defined preciscion of root finding method used to get dust charge
 
 dt = 1e-4#time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 #eps = 1e-7
-dust_grain_max = 3 #dust grain max number
+dust_grain_max = 5 #dust grain max number
+print("grain number = ", dust_grain_max)
 frames = 1e5 #number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+print("frames = ",frames)
 temp_min = 1e-5#minimum temperature for it to stop
 for_run = True 
 print("for_run =",for_run)
@@ -174,9 +181,9 @@ class Dust_Container:
         x_0 = -container_radius/6 + random.random()*container_radius/3#create random number centred about 0 with width container_radius/3
         y_0 = -container_radius/6 + random.random()*container_radius/3
         z_0 = self.container_height
-        vx_0 = random.random()*2e-10 - 1e-10
-        vy_0 = random.random()*2e-10 - 1e-10
-        vz_0 = random.random()*2e-8 - 1e-8
+        vx_0 = 0#random.random()*2e-10 - 1e-10
+        vy_0 = 0#random.random()*2e-10 - 1e-10
+        vz_0 = 0#random.random()*2e-8 - 1e-8
         #print("dust_init_pos=",x_0/lambda_D,y_0/lambda_D,self.container_height/lambda_D)
         return np.array([x_0,y_0,z_0,vx_0,vy_0,vz_0])#W_vec
     
@@ -185,16 +192,39 @@ class Dust_Container:
     
     def inter_particle_ca(self):
         for i in self.comb_list:
-            r_21 = i[0].W_vec[0:3] - i[1].W_vec[0:3]
-            r_21_pos = i[0].W_vec[0:3] - i[1].wake_pos
-            r_12_pos = i[1].W_vec[0:3] - i[0].wake_pos
 
-            force_c = ((i[0].charge*i[1].charge)/(4*np.pi*epsilon_0))*(r_21/(np.linalg.norm(r_21))**3)
-            force_c_pos_21 = ((i[0].charge*i[1].wake_charge)/(4*np.pi*epsilon_0))*(r_21_pos/(np.linalg.norm(r_21_pos))**3)
-            force_c_pos_12 = ((i[1].charge*i[0].wake_charge)/(4*np.pi*epsilon_0))*(r_12_pos/(np.linalg.norm(r_12_pos))**3)
+            r_01 =  i[0].W_vec[0:3] - i[1].W_vec[0:3]
+            r_01_mag = np.linalg.norm(r_01)
+            r_01_pos =  i[0].wake_pos - i[1].W_vec[0:3]
+            r_01_pos_mag = np.linalg.norm(r_01_pos)
+            r_10_pos = i[1].wake_pos - i[0].W_vec[0:3]
+            r_10_pos_mag = np.linalg.norm(r_10_pos)
 
-            i[0].a_c = i[0].a_c + force_c/i[0].mass + force_c_pos_21/i[0].mass
-            i[1].a_c = i[1].a_c - force_c/i[1].mass + force_c_pos_12/i[1].mass #NOT SURE IF THIS IS RIGHT
+            force_c_pos_01 = np.array([0,0,0])
+            force_c_pos_10 = np.array([0,0,0])
+            #force_c = ((i[0].charge*i[1].charge)/(4*np.pi*epsilon_0))*(r_01/(np.linalg.norm(r_01))**3)
+            #force_c_pos_01 = ((i[0].charge*i[1].wake_charge)/(4*np.pi*epsilon_0))*(r_01_pos/(np.linalg.norm(r_01_pos))**3)
+            #force_c_pos_10 = ((i[1].charge*i[0].wake_charge)/(4*np.pi*epsilon_0))*(r_10_pos/(np.linalg.norm(r_10_pos))**3)
+
+            force_c = -((i[0].charge*i[1].charge)/(4*np.pi*epsilon_0))* np.exp((i[1].grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(r_01_mag**3) + 1/(lambda_D*(r_01_mag**2)))* r_01
+            
+            if(i[1].W_vec[2] < z_se):
+                
+                    #M = ((v_B**2 + (i_charge*k_z_restore*(W_vec_f[2] - z_se)**2)/m_i -2*g_z*(W_vec_f[2] - z_se))**0.5)/v_B
+                    #L_s = lambda_D*((M**2 - 1)**0.5)
+                    #force_c_pos_01 = i[0].charge*i[1].wake_charge * (2/(1-(M**-2))) * ((np.cos(z/L_s)/z**2) + (np.sin(z/L_s)/z))
+                    
+                    force_c_pos_01 = -((i[0].charge*i[1].wake_charge)/(4*np.pi*epsilon_0))* np.exp((i[1].grain_R/lambda_D) - (r_01_pos_mag/lambda_D)) * (1/(r_01_pos_mag**3) + 1/(lambda_D*(r_01_pos_mag**2)))* r_01_pos
+                    
+            if(i[0].W_vec[2] < z_se):
+                    force_c_pos_10 = -((i[1].charge*i[0].wake_charge)/(4*np.pi*epsilon_0))* np.exp((i[0].grain_R/lambda_D) - (r_10_pos_mag/lambda_D)) * (1/(r_10_pos_mag**3) + 1/(lambda_D*(r_10_pos_mag**2)))* r_10_pos
+            
+            i[0].a_c = i[0].a_c + force_c/i[0].mass + force_c_pos_01/i[0].mass
+            i[1].a_c = i[1].a_c - force_c/i[1].mass + force_c_pos_10/i[1].mass
+            
+            
+            
+#v_i_z = (v_B**2 + (i_charge*k_z_restore*(W_vec_f[2] - z_se)**2)/m_i -2*g_z*(W_vec_f[2] - z_se))**0.5
     
     def next_frame(self):
         """The big daddy of the code, this functions loops over advancing the simulation by a time step dt"""
@@ -204,6 +234,7 @@ class Dust_Container:
             
         for i in np.arange(len(self.Dust_grain_list)):
             """advance via the rk4 and add the predicted postiosn to the momentary list """
+            #print("hi ac =",self.Dust_grain_list[i].a_c)
             self.Dust_grain_list[i].time_list.append(time_list[-1]+ dt)
             self.Dust_grain_list[i].step()
             self.Dust_grain_list[i].a_c = np.array([0,0,0])
@@ -251,7 +282,7 @@ class Dust_grain(Dust_Container):
          self.y_history = [self.W_vec[1]/lambda_D]
          self.z_history = [self.W_vec[2]/lambda_D]
          self.wake_pos = np.array([self.W_vec[0],self.W_vec[1],self.W_vec[2] - wake_potential_below])
-         self.wake_charge = np.abs(self.charge)*1e-1
+         self.wake_charge = np.abs(self.charge)*wake_charge_multiplier
     
     def calc_speed(self):
         return np.linalg.norm(self.W_vec[3:6])
@@ -275,7 +306,7 @@ class Dust_grain(Dust_Container):
             rad_force_mag = (self.charge/self.mass)*k_r_restore*np.abs(radial - r_se_inv)
             vx_diff_new = rad_force_mag*(W_vec_f[0]/radial) - (alpha*W_vec_f[3])/self.mass + self.a_c[0] + (W_vec_f[0]/radial)*a_i_r #drag, sheathe and coloumb force and ion drag force
             vy_diff_new = rad_force_mag*(W_vec_f[1]/radial) - (alpha*W_vec_f[4])/self.mass + self.a_c[1] + (W_vec_f[1]/radial)*a_i_r
-            #print("x accel = ",rad_force_mag*(W_vec_f[0]/radial),- (alpha*W_vec_f[3])/self.mass,+ (W_vec_f[0]/radial)*a_i_r)
+            #print("x accel = ",rad_force_mag*(W_vec_f[0]/radial),- (alpha*W_vec_f[3])/self.mass, self.a_c[0] ,+ (W_vec_f[0]/radial)*a_i_r)
         if W_vec_f[2] > z_se:
             vz_diff_new = - g_z - (alpha*W_vec_f[5])/self.mass + self.a_c[2]#drag, gravity, coloumb force and ion drag force
         else:
@@ -326,7 +357,7 @@ class Dust_grain(Dust_Container):
 #        return dt*self.f_der(self.W_vec)
 #    
 #    def k_2_45(self,dt,k_1):
-#        W_vec_k2 = self.W_vec + b_21*k_1
+#        W_vec_k2 = self.W_vec + b_01*k_1
 #        return dt*self.f_der(W_vec_k2)
 #    
 #    def k_3_45(self,dt,k_1,k_2):
