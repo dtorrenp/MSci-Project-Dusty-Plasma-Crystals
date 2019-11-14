@@ -9,6 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import itertools as it
 from scipy.spatial import Voronoi, voronoi_plot_2d
 from scipy.spatial import Delaunay
+import pickle 
 #plt.ioff()
 #%%
 """Import stuff to measure how long the code takes to run"""
@@ -84,15 +85,15 @@ lambda_de = ((epsilon_0*k_b*T_e)/(n_e0*(e_charge**2)))**0.5
 lambda_di = ((epsilon_0*k_b*T_i)/(n_i0*(e_charge**2)))**0.5
 lambda_D = (1/(1/(lambda_de**2) + 1/(lambda_di**2)))**0.5#get lambda_D
 print("lambda_D =",lambda_D )
-
+print("lambda_D/R =",lambda_D/grain_R)
 container_height = 11*lambda_D#drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 container_radius = 100*lambda_D#set radius of contianer ie wall radius
 z_se = 10*lambda_D#distance from bottom of container to the sheath edge
 r_se = 100*lambda_D#distance from wall to the sheathe edge
 r_se_inv = container_radius - r_se
 
-wake_potential_below = 0.5*lambda_D
-wake_charge_multiplier = 1e-3
+wake_potential_below = 2*grain_R
+wake_charge_multiplier = 1e-1
 
 phi_wall_z = -100 #volts
 phi_wall_r = -1 #volts
@@ -109,12 +110,12 @@ root = 1e-14#defined preciscion of root finding method used to get dust charge
 
 dt = 1e-4#time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 #eps = 1e-7
-dust_grain_max = 5 #dust grain max number
+dust_grain_max = 30 #dust grain max number
 print("grain number = ", dust_grain_max)
-frames = 1e5 #number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-print("frames = ",frames)
-temp_min = 1e-5#minimum temperature for it to stop
-for_run = True 
+frames = 1e6 #number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+print("frames limit = ",frames)
+temp_min = 1e-1#minimum temperature for it to stop
+for_run = False 
 print("for_run =",for_run)
 
 #%%
@@ -126,7 +127,6 @@ class Dust_Container:
             self.container_height = container_height
             self.m_D = m_D
             self.grain_R = grain_R
-            self.init_W_vec = np.array([0,0,self.container_height,0,0,0])#its dumb but need inital vector for first dust grain W_vec = [x,y,z,vx,vy,vz]
             self.phi_grain = self.OML_find_surface_potential()#defined surface potential of the dust grains, this is a properties of the plasma not the dust grain(however the dust grain charge is a property of the dust grain as it requires radius of dust grain)
             self.Dust_grain_list = np.array([Dust_grain(self.m_D , self.grain_R , self.produce_q_D() , self.prod_W_vec(), time_list[-1])])#create the first dust grain
             self.v_squared_sum = (self.Dust_grain_list[0].calc_speed())**2
@@ -206,19 +206,22 @@ class Dust_Container:
             #force_c_pos_01 = ((i[0].charge*i[1].wake_charge)/(4*np.pi*epsilon_0))*(r_01_pos/(np.linalg.norm(r_01_pos))**3)
             #force_c_pos_10 = ((i[1].charge*i[0].wake_charge)/(4*np.pi*epsilon_0))*(r_10_pos/(np.linalg.norm(r_10_pos))**3)
 
-            force_c = -((i[0].charge*i[1].charge)/(4*np.pi*epsilon_0))* np.exp((i[1].grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(r_01_mag**3) + 1/(lambda_D*(r_01_mag**2)))* r_01
-            
+            force_c = -1*-((i[0].charge*i[1].charge)/(4*np.pi*epsilon_0))* np.exp((i[1].grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(r_01_mag**3) + 1/(lambda_D*(r_01_mag**2)))* r_01
             if(i[1].W_vec[2] < z_se):
                 
                     #M = ((v_B**2 + (i_charge*k_z_restore*(W_vec_f[2] - z_se)**2)/m_i -2*g_z*(W_vec_f[2] - z_se))**0.5)/v_B
                     #L_s = lambda_D*((M**2 - 1)**0.5)
                     #force_c_pos_01 = i[0].charge*i[1].wake_charge * (2/(1-(M**-2))) * ((np.cos(z/L_s)/z**2) + (np.sin(z/L_s)/z))
-                    
-                    force_c_pos_01 = -((i[0].charge*i[1].wake_charge)/(4*np.pi*epsilon_0))* np.exp((i[1].grain_R/lambda_D) - (r_01_pos_mag/lambda_D)) * (1/(r_01_pos_mag**3) + 1/(lambda_D*(r_01_pos_mag**2)))* r_01_pos
+                #print("hi")
+                wake_charge = np.abs(i[0].v_i_z/v_B)*i[1].wake_charge
+                force_c_pos_01 = -1*-((i[0].charge*wake_charge)/(4*np.pi*epsilon_0))* np.exp((i[1].grain_R/lambda_D) - (r_01_pos_mag/lambda_D)) * (1/(r_01_pos_mag**3) + 1/(lambda_D*(r_01_pos_mag**2)))* r_01_pos
                     
             if(i[0].W_vec[2] < z_se):
-                    force_c_pos_10 = -((i[1].charge*i[0].wake_charge)/(4*np.pi*epsilon_0))* np.exp((i[0].grain_R/lambda_D) - (r_10_pos_mag/lambda_D)) * (1/(r_10_pos_mag**3) + 1/(lambda_D*(r_10_pos_mag**2)))* r_10_pos
-            
+                #print("yooooo")
+                wake_charge = np.abs(i[0].v_i_z/v_B)*i[0].wake_charge
+                force_c_pos_10 = -1*-((i[1].charge*wake_charge)/(4*np.pi*epsilon_0))* np.exp((i[0].grain_R/lambda_D) - (r_10_pos_mag/lambda_D)) * (1/(r_10_pos_mag**3) + 1/(lambda_D*(r_10_pos_mag**2)))* r_10_pos
+            #print("em forces on 0 = ", force_c/i[0].mass,force_c_pos_01/i[0].mass)
+            #print("em forces on 1 = ", - force_c/i[1].mass,force_c_pos_10/i[1].mass)
             i[0].a_c = i[0].a_c + force_c/i[0].mass + force_c_pos_01/i[0].mass
             i[1].a_c = i[1].a_c - force_c/i[1].mass + force_c_pos_10/i[1].mass
             
@@ -283,6 +286,7 @@ class Dust_grain(Dust_Container):
          self.z_history = [self.W_vec[2]/lambda_D]
          self.wake_pos = np.array([self.W_vec[0],self.W_vec[1],self.W_vec[2] - wake_potential_below])
          self.wake_charge = np.abs(self.charge)*wake_charge_multiplier
+         self.v_i_z = 0
     
     def calc_speed(self):
         return np.linalg.norm(self.W_vec[3:6])
@@ -310,10 +314,10 @@ class Dust_grain(Dust_Container):
         if W_vec_f[2] > z_se:
             vz_diff_new = - g_z - (alpha*W_vec_f[5])/self.mass + self.a_c[2]#drag, gravity, coloumb force and ion drag force
         else:
-            v_i_z = (v_B**2 + (i_charge*k_z_restore*(W_vec_f[2] - z_se)**2)/m_i -2*g_z*(W_vec_f[2] - z_se))**0.5
+            self.v_i_z = (v_B**2 + (i_charge*k_z_restore*(W_vec_f[2] - z_se)**2)/m_i -2*g_z*(W_vec_f[2] - z_se))**0.5
             #print("v_i_z =",v_i_z)
             #print(v_B**2, (i_charge*k_z_restore*(W_vec_f[2] - z_se)**2)/m_i,  -2*g_z*(W_vec_f[2] - z_se))
-            vz_diff_new = (self.charge/self.mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/self.mass  + self.a_c[2] + (np.pi*self.grain_R**2*m_i*n_i0*v_i_z**2)/self.mass#drag, sheathe, gravity, coloumb force and ion drag force
+            vz_diff_new = (self.charge/self.mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/self.mass  + self.a_c[2] + (np.pi*self.grain_R**2*m_i*n_i0*self.v_i_z**2)/self.mass#drag, sheathe, gravity, coloumb force and ion drag force
             #print("z accel = ", - g_z, - (alpha*W_vec_f[5])/self.mass, self.a_c[2], (np.pi*self.grain_R**2*m_i*n_i0*v_i_z**2)/self.mass)
         f = np.array([x_diff_new, y_diff_new, z_diff_new, vx_diff_new, vy_diff_new, vz_diff_new])
         return f
@@ -421,7 +425,8 @@ else:
     #Dust_average_speed = Dusty_plasma_crystal.calc_average_speed()
     Dusty_plasma_crystal.calc_temperature()
     while((len(Dusty_plasma_crystal.Dust_grain_list) <= dust_grain_max) and (len(time_list) < frames)):
-        if ( (Dusty_plasma_crystal.temperature < temp_min) and (len(Dusty_plasma_crystal.Dust_grain_list) == dust_grain_max) ):
+        #print(Dusty_plasma_crystal.temperature)
+        if ((Dusty_plasma_crystal.temperature < temp_min) and (len(Dusty_plasma_crystal.Dust_grain_list) == dust_grain_max)):
             break
         time_list.append(time_list[-1]+ dt)
         Dusty_plasma_crystal.next_frame()
@@ -431,9 +436,15 @@ else:
 
 """get data out"""
 Final_conditions_dust_grains = Dusty_plasma_crystal.Dust_grain_list
+
+file_data = open("Data/dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(time_list)) + ".obj", 'wb') 
+
 vel_list = []
 for i in np.arange(len(Final_conditions_dust_grains)):
+    pickle.dump(Final_conditions_dust_grains[i], file_data)
     vel_list.append([Final_conditions_dust_grains[i].W_vec[3:6]])
+    
+file_data.close()
     
 #%%
 
@@ -442,7 +453,6 @@ x_r_se = r_se_inv/lambda_D*np.cos(theta)
 y_r_se = r_se_inv/lambda_D*np.sin(theta)
 x_r_wall = container_radius/lambda_D*np.cos(theta)
 y_r_wall = container_radius/lambda_D*np.sin(theta)
-
 
 y_z_se = [z_se/lambda_D]*len(time_list)
 
@@ -473,6 +483,7 @@ plt.ylabel("y/lambda_D")
 plt.grid()
 plt.xlim(-container_radius/lambda_D,container_radius/lambda_D)
 plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
+plt.savefig("Figures/Path_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(time_list)) + ".png")
 
 plt.figure(2)
 plt.title("test - x")
@@ -484,6 +495,7 @@ plt.xlabel("Time")
 plt.ylabel("x/lambda_D")
 plt.grid()
 plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
+plt.savefig("Figures/x_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(time_list)) + ".png")
 
 plt.figure(3)
 plt.title("test - y")
@@ -495,6 +507,7 @@ plt.xlabel("Time")
 plt.ylabel("y/lambda_D")
 plt.grid()
 plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
+plt.savefig("Figures/y_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(time_list)) + ".png")
 
 plt.figure(4)
 plt.title("test - z")
@@ -510,6 +523,7 @@ plt.plot(time_list,y_z_se, "--", color = "black")
 #plt.plot(xs, horiz_line_data, 'r--') 
 plt.ylim(0,container_height/lambda_D)
 plt.grid()
+plt.savefig("Figures/z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(time_list)) + ".png")
 
 plt.figure(5)
 plt.title("Final Positions")
@@ -522,6 +536,7 @@ plt.plot(x_r_wall,y_r_wall, color = "black")
 plt.grid()
 plt.xlim(-container_radius/lambda_D,container_radius/lambda_D)
 plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
+plt.savefig("Figures/final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(time_list)) + ".png")
 
 fig = plt.figure(6)
 ax = fig.add_subplot(111, projection='3d')
