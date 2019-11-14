@@ -83,10 +83,12 @@ lambda_di = ((epsilon_0*k_b*T_i)/(n_i0*(e_charge**2)))**0.5
 lambda_D = (1/(1/(lambda_de**2) + 1/(lambda_di**2)))**0.5#get lambda_D
 
 container_height = 11*lambda_D#drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
-container_radius = 11*lambda_D#set radius of contianer ie wall radius
+container_radius = 100*lambda_D#set radius of contianer ie wall radius
 z_se = 10*lambda_D#distance from bottom of container to the sheath edge
-r_se = 10*lambda_D#distance from wall to the sheathe edge
+r_se = 100*lambda_D#distance from wall to the sheathe edge
 r_se_inv = container_radius - r_se
+
+wake_potential_below = 0.5*lambda_D
 
 phi_wall_z = -100 #volts
 phi_wall_r = -1 #volts
@@ -102,10 +104,10 @@ root = 1e-14#defined preciscion of root finding method used to get dust charge
 
 dt = 1e-4#time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 #eps = 1e-7
-dust_grain_max = 5 #dust grain max number
+dust_grain_max = 3 #dust grain max number
 frames = 1e5 #number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 temp_min = 1e-5#minimum temperature for it to stop
-for_run = True
+for_run = True 
 print("for_run =",for_run)
 
 #%%
@@ -184,9 +186,15 @@ class Dust_Container:
     def inter_particle_ca(self):
         for i in self.comb_list:
             r_21 = i[0].W_vec[0:3] - i[1].W_vec[0:3]
+            r_21_pos = i[0].W_vec[0:3] - i[1].wake_pos
+            r_12_pos = i[1].W_vec[0:3] - i[0].wake_pos
+
             force_c = ((i[0].charge*i[1].charge)/(4*np.pi*epsilon_0))*(r_21/(np.linalg.norm(r_21))**3)
-            i[0].a_c = i[0].a_c + force_c/i[0].mass
-            i[1].a_c = i[1].a_c - force_c/i[1].mass
+            force_c_pos_21 = ((i[0].charge*i[1].wake_charge)/(4*np.pi*epsilon_0))*(r_21_pos/(np.linalg.norm(r_21_pos))**3)
+            force_c_pos_12 = ((i[1].charge*i[0].wake_charge)/(4*np.pi*epsilon_0))*(r_12_pos/(np.linalg.norm(r_12_pos))**3)
+
+            i[0].a_c = i[0].a_c + force_c/i[0].mass + force_c_pos_21/i[0].mass
+            i[1].a_c = i[1].a_c - force_c/i[1].mass + force_c_pos_12/i[1].mass #NOT SURE IF THIS IS RIGHT
     
     def next_frame(self):
         """The big daddy of the code, this functions loops over advancing the simulation by a time step dt"""
@@ -236,11 +244,14 @@ class Dust_grain(Dust_Container):
          #self.k_z_restore = -(1e-5)/self.charge#affects how strong the radial and vertical forces are due to sheathe
          #self.k_r_restore = -(1e-5)/self.charge
          self.a_c = np.array([0,0,0])
+         
          self.time_list = [time_init]
          self.to_be_deleted = False
          self.x_history = [self.W_vec[0]/lambda_D]#records all x,yz positosn of the dust grain over history
          self.y_history = [self.W_vec[1]/lambda_D]
          self.z_history = [self.W_vec[2]/lambda_D]
+         self.wake_pos = np.array([self.W_vec[0],self.W_vec[1],self.W_vec[2] - wake_potential_below])
+         self.wake_charge = np.abs(self.charge)*1e-1
     
     def calc_speed(self):
         return np.linalg.norm(self.W_vec[3:6])
@@ -264,7 +275,7 @@ class Dust_grain(Dust_Container):
             rad_force_mag = (self.charge/self.mass)*k_r_restore*np.abs(radial - r_se_inv)
             vx_diff_new = rad_force_mag*(W_vec_f[0]/radial) - (alpha*W_vec_f[3])/self.mass + self.a_c[0] + (W_vec_f[0]/radial)*a_i_r #drag, sheathe and coloumb force and ion drag force
             vy_diff_new = rad_force_mag*(W_vec_f[1]/radial) - (alpha*W_vec_f[4])/self.mass + self.a_c[1] + (W_vec_f[1]/radial)*a_i_r
-            print("x accel = ",rad_force_mag*(W_vec_f[0]/radial),- (alpha*W_vec_f[3])/self.mass,+ (W_vec_f[0]/radial)*a_i_r)
+            #print("x accel = ",rad_force_mag*(W_vec_f[0]/radial),- (alpha*W_vec_f[3])/self.mass,+ (W_vec_f[0]/radial)*a_i_r)
         if W_vec_f[2] > z_se:
             vz_diff_new = - g_z - (alpha*W_vec_f[5])/self.mass + self.a_c[2]#drag, gravity, coloumb force and ion drag force
         else:
@@ -308,8 +319,9 @@ class Dust_grain(Dust_Container):
         k2 = self.k_2(k1)
         k3 = self.k_3(k2)
         k4 = self.k_4(k3)
-        print("hi")
-        self.W_vec += (k1 + 2*k2 + 2*k3 + k4)/6    
+        #print("hi")
+        self.W_vec += (k1 + 2*k2 + 2*k3 + k4)/6
+        self.wake_pos = np.array([self.W_vec[0],self.W_vec[1],self.W_vec[2] - wake_potential_below])  
 #    def k_1_45(self,dt):
 #        return dt*self.f_der(self.W_vec)
 #    
@@ -383,8 +395,8 @@ else:
         time_list.append(time_list[-1]+ dt)
         Dusty_plasma_crystal.next_frame()
 
-print("heeyyy")
-print(Dusty_plasma_crystal.temperature)
+#print("heeyyy")
+#print(Dusty_plasma_crystal.temperature)
 
 """get data out"""
 Final_conditions_dust_grains = Dusty_plasma_crystal.Dust_grain_list

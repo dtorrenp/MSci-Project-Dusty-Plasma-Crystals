@@ -205,7 +205,7 @@ class Dust_grain{
         //cout << "k3 = " <<k3[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
         //cout << "k4 = " <<k4[0]/lambda_D << "," << k1[1]/lambda_D << "," << k1[2]/lambda_D << "," << k1[3] << ","  << k1[4] << ","  << k1[5] << endl;
 
-        W_vec = element_add(W_vec,element_mul(element_add(element_add(    element_add(k1,element_mul(k2,2)) ,element_mul(k3,2)      ),k4),1.0/6.0));
+        W_vec = element_add(W_vec,element_mul(element_add(element_add(    element_add(k1,element_mul(k2,2.0)) ,element_mul(k3,2.0)      ),k4),1.0/6.0));
 
         //cout << "W_vec = " << W_vec[0]/lambda_D << "," << W_vec[1]/lambda_D << "," << W_vec[2]/lambda_D << "," << W_vec[3] << ","  << W_vec[4] << ","  << W_vec[5] << endl;
     }
@@ -228,7 +228,7 @@ class Dust_Container{
 	Dust_Container(double container_Radius, double container_Height, double M_D, double Grain_R) :time_list{0},container_radius(container_Radius), container_height(container_Height), m_D(M_D), grain_R(Grain_R)
     {
             phi_grain = OML_find_surface_potential();
-            Dust_grain_list = {Dust_grain(m_D , grain_R , produce_q_D(), 0)};
+            Dust_grain_list = {Dust_grain(m_D , grain_R , produce_q_D(), 0.0)};
             //double comb_list = list(it.combinations(self.Dust_grain_list,2))
     } 
 
@@ -254,7 +254,7 @@ class Dust_Container{
         double f_x_0 = f_x(x_n,z);
         double f_x_1 = f_x_first_derv(x_n);
         double f_x_2 = f_x_second_derv(x_n);
-        double x_plus = x_n - ((2*f_x_0*f_x_1)/(2*(pow(f_x_1,2))-f_x_0*f_x_2));
+        double x_plus = x_n - ((2*f_x_0*f_x_1)/(2.0*(pow(f_x_1,2))-f_x_0*f_x_2));
         return x_plus;
     }
     double find_W_H(double a_0,double z,double root_prec){
@@ -271,7 +271,7 @@ class Dust_Container{
     }
     double produce_q_D(){
         // get dust charge using the surface potential, note the use of the grain radius//
-        return 4*M_PI*epsilon_0*grain_R*phi_grain;
+        return 4.0*M_PI*epsilon_0*grain_R*phi_grain;
     }
     /*
     double calc_average_speed(){
