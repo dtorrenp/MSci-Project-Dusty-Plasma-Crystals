@@ -61,9 +61,9 @@ const double root = 1.0e-14;//preciscion of root finding method used to get dust
 
 const double dt = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 const double dust_grain_max = 10;//dust grain max number
-const double frames = 1.0e5;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+const double frames = 1.0e6;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 const double temp_min = 1;
-const bool for_run = true;
+const bool for_run = false;
 
 //make functions for element-wise multiplication and addition of vectors
 vector<double> element_mul(const vector<double>& a,double cst){
@@ -118,8 +118,8 @@ class Dust_grain{
     }
 
     double calc_speed(){
-        auto pos = vector<double> (W_vec.begin(),W_vec.begin() + 3);
-        return v_abs(pos);
+        auto vel = vector<double> (W_vec.end() - 3,W_vec.end());        
+        return v_abs(vel);
     }
     
     void prod_W_vec(){
@@ -296,6 +296,7 @@ class Dust_Container{
 
     void calc_temperature(){
         temperature = m_D*(v_squared_sum/Dust_grain_list.size())/(3*k_b);
+        //cout << m_D << "," << v_squared_sum/Dust_grain_list.size() << "," << 1/(3*k_b) << endl;
     }
 
     void combs_list_produce(){
@@ -378,7 +379,7 @@ class Dust_Container{
         //cout<< Dust_grain_list.size() << endl;
         inter_particle_ca();
 
-		time_list.push_back(time_list.back() + dt);
+		 time_list.push_back(time_list.back() + dt);
 
         for (int i = 0; i < Dust_grain_list.size(); i++){
             //advance via the rk4 and add the predicted postiosn to the momentary list
@@ -389,23 +390,22 @@ class Dust_Container{
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
 
-            v_squared_sum += pow( Dust_grain_list[i].calc_speed() ,2);
+            v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);
 
             //cout << Dust_grain_list[i].W_vec[0]/lambda_D << "," << Dust_grain_list[i].W_vec[1]/lambda_D << "," << Dust_grain_list[i].W_vec[2]/lambda_D << endl;
 
             if( (i == (Dust_grain_list.size() - 1)) && (Dust_grain_list[i].W_vec[2] < z_se) && (Dust_grain_list.size() < dust_grain_max) ){
                 //""" if the last dust grain added has reached the lower sheathe electrode add another dust grain unless we have reached the dust grain number cap"""
                 Dust_grain_list.push_back(Dust_grain(m_D , grain_R , produce_q_D(),time_list.back()));
-                //combs_list = list(it.combinations(Dust_grain_list,2))//FIXXXXX
-                //cout<< "another"<< endl;
                 combs_list_produce();
-                //cout << combs_list.size() << endl;
-                //cout << combs_list.size() << endl;
             }
         };
-        //cout << v_squared_sum << endl;
         calc_temperature();
+        //cout << "heeyeyeyeye" << endl;
+        //cout << v_squared_sum << endl;
         v_squared_sum = 0;
+        //cout << v_squared_sum << endl;
+        //cout << "srrrrrr" << endl;
     }
 };
 
@@ -457,7 +457,6 @@ int main(){
     else{
         //Dusty_plasma_crystal.calc_temperature();
         while( (Dusty_plasma_crystal.Dust_grain_list.size() <= dust_grain_max) && (Dusty_plasma_crystal.time_list.size() < frames)){
-            //cout << Dusty_plasma_crystal.temperature<< endl;
             if ( (Dusty_plasma_crystal.temperature < temp_min) && (Dusty_plasma_crystal.Dust_grain_list.size() == dust_grain_max) ){
                 break;
             }
@@ -473,17 +472,6 @@ int main(){
     //filename.append(".csv");
     
     cout << "done" << endl;
-    //cout << filename << endl;
-
-    //ofstream outputFile;
-    //outputFile.open("test.csv");
-   
-    //outputFile << "X" << "," << "Y" << "," << "Z" << "," << "VX" << "," << "VY" << "," << "VZ" << endl;
-    //for(int i = 0; i < Dusty_plasma_crystal.Dust_grain_list.size(); i++){
-	    //outputFile << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[0]/lambda_D << "," << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[1]/lambda_D << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[2]/lambda_D << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[3] << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[4] << ","  << Dusty_plasma_crystal.Dust_grain_list[i].W_vec[5] << endl;
-    //}
-    //outputFile.close();
-   
     // Wrap into a vector
     vector<double> x_vec;
     vector<double> y_vec;

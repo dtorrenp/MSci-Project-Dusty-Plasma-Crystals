@@ -110,7 +110,7 @@ root = 1e-14#defined preciscion of root finding method used to get dust charge
 
 dt = 1e-4#time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 #eps = 1e-7
-dust_grain_max = 3 #dust grain max number
+dust_grain_max = 5 #dust grain max number
 print("grain number = ", dust_grain_max)
 frames = 1e6 #number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 print("frames limit = ",frames)
