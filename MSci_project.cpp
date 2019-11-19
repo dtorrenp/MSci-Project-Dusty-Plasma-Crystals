@@ -364,12 +364,11 @@ void write_csv(string filename, vector<pair<string, vector<double>>> dataset){
     myFile << endl;//next line
     
     // Send data to the stream
-    for(int i = 0; i < dataset.back().second.size(); ++i){//loop through rows
+    for(int i = 0; i < dataset.front().second.size(); ++i){//loop through rows
         for(int j = 0; j < dataset.size(); ++j){//loop through columbs
             //cout << (dataset.back().second.size() - dataset.at(j).second.size()) << endl;
-            if(i > (dataset.back().second.size() - dataset.at(j).second.size()) ){
-                int entry_num = i - (dataset.back().second.size() - dataset.at(j).second.size());
-                myFile << dataset.at(j).second.at(entry_num);
+            if(i <  dataset.at(j).second.size()){
+                myFile << dataset.at(j).second.at(i);
             } 
             if(j != dataset.size() - 1){
                 myFile << ","; // No comma at end of line

@@ -29,12 +29,16 @@ r_se = 100*lambda_D#distance from wall to the sheathe edge
 r_se_inv = container_radius - r_se
 
 #%%
-#COMPILE
-#UNI
-#subprocess.call(["g++", "H:\year 4\computational\MSci-Project-Dusty-Plasma-Crystals\MSci_project.cpp"])
-#LAPTOP
-subprocess.call(["g++", "-o", "MSci_project", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project.cpp"])
-subprocess.call("MSci_project.exe")
+
+status = input("Compile or Run?")
+
+if status == "Compile":
+    #COMPILE
+    #UNI
+    #subprocess.call(["g++", "H:\year 4\computational\MSci-Project-Dusty-Plasma-Crystals\MSci_project.cpp"])
+    #LAPTOP
+    subprocess.call(["g++", "-o", "MSci_project", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project.cpp"])
+    subprocess.call("MSci_project.exe")
 
 FILENAME = input("Data file name?")
 
@@ -42,7 +46,8 @@ FILENAME = input("Data file name?")
 
 import pandas as pd
 data = pd.read_csv(FILENAME)
-dust_grain_max = int((len(data.columns) - 1)/3)
+dust_grain_max = int((len(data.columns))/4)
+last_time_val = data["Time_list_0"].iloc[-1]
 
 #%%
 
@@ -56,11 +61,12 @@ y_z_se = [z_se/lambda_D]*len(data["Time_list_0"])
 #%%
 
 plt.figure(1)
-plt.title("test")
+plt.title("Motion")
 for i in np.arange(dust_grain_max):
+   last_val_index = np.where(data["Time_list_" + str(i)].values == last_time_val)
    plt.plot(data["X_" + str(i)],data["Y_" + str(i)])
-   plt.plot(data["X_" + str(i)][0], data["Y_" + str(i)].first_valid_index(),"+" ,color='blue')
-   plt.plot(data["X_" + str(i)].iloc[-1], data["Y_" + str(i)].iloc[-1],"+" ,color='red')
+   plt.plot(data["X_" + str(i)][0], data["Y_" + str(i)][0],"+" ,color='blue')
+   plt.plot(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
 plt.plot(x_r_se,y_r_se, "--", color = "black")
 plt.plot(x_r_wall,y_r_wall, color = "black")
 plt.xlabel("x/lambda_D")
@@ -68,49 +74,53 @@ plt.ylabel("y/lambda_D")
 plt.grid()
 plt.xlim(-container_radius/lambda_D,container_radius/lambda_D)
 plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
-plt.savefig("Figures/Path_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
+plt.savefig("Figures/Path_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
 
 plt.figure(2)
 plt.title("test - x")
 for i in np.arange(dust_grain_max):
-   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["X_" + str(i)]):],   data["X_" + str(i)])
-   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["X_" + str(i)])] , data["X_" + str(i)][0],"+" ,color='blue')
-   plt.plot(data["Time_list"].iloc[-1],data["X_" + str(i)].iloc[-1],"+" ,color='red')
+   last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+   plt.plot(data["Time_list_" +str(i)], data["X_" + str(i)])
+   plt.plot(data["Time_list_" +str(i)][0], data["X_" + str(i)][0],"+" ,color='blue')
+   plt.plot(data["Time_list_" +str(i)].iloc[last_val_index], data["X_" + str(i)].iloc[last_val_index],"+" ,color='red')
 plt.xlabel("Time")
 plt.ylabel("x/lambda_D")
 plt.grid()
 plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
-plt.savefig("Figures/x_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
+plt.savefig("Figures/x_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
 
 plt.figure(3)
 plt.title("test - y")
 for i in np.arange(dust_grain_max):
-   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["Y_" + str(i)]):],   data["Y_" + str(i)])
-   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["Y_" + str(i)])] , data["Y_" + str(i)][0],"+" ,color='blue')
-   plt.plot(data["Time_list"][-1],data["Y_" + str(i)][-1],"+" ,color='red')
+   last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+   plt.plot(data["Time_list_" +str(i)], data["Y_" + str(i)])
+   plt.plot(data["Time_list_" +str(i)][0], data["Y_" + str(i)][0],"+" ,color='blue')
+   plt.plot(data["Time_list_" +str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
 plt.xlabel("Time")
 plt.ylabel("y/lambda_D")
 plt.grid()
 plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
-plt.savefig("Figures/y_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
+plt.savefig("Figures/y_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
 
 plt.figure(4)
 plt.title("test - z")
 for i in np.arange(dust_grain_max):
-   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["Z_" + str(i)]):],   data["Z_" + str(i)])
-   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["Z_" + str(i)])] , data["Z_" + str(i)][0],"+" ,color='blue')
-   plt.plot(data["Time_list"][-1],data["Z_" + str(i)][-1],"+" ,color='red')
+   last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+   plt.plot(data["Time_list_" +str(i)], data["Z_" + str(i)])
+   plt.plot(data["Time_list_" +str(i)][0], data["Z_" + str(i)][0],"+" ,color='blue')
+   plt.plot(data["Time_list_" +str(i)].iloc[last_val_index], data["Z_" + str(i)].iloc[last_val_index],"+" ,color='red')
 plt.xlabel("Time")
 plt.ylabel("z/lambda_D")
-plt.plot(data["Time_list"],y_z_se, "--", color = "black")
+plt.plot(data["Time_list_0"],y_z_se, "--", color = "black")
 plt.ylim(0,container_height/lambda_D)
 plt.grid()
-plt.savefig("Figures/z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
+plt.savefig("Figures/z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
 
 plt.figure(5)
 plt.title("Final Positions")
 for i in np.arange(dust_grain_max):
-   plt.plot(data["X_" + str(i)].iloc[-1], data["Y_" + str(i)].iloc[-1],"+" ,color='red')
+   last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+   plt.plot(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
 plt.xlabel("x/lambda_D")
 plt.ylabel("y/lambda_D")
 plt.plot(x_r_se,y_r_se, "--", color = "black")
@@ -124,7 +134,8 @@ fig = plt.figure(6)
 plt.title("Final Positions - 3D")
 ax = fig.add_subplot(111, projection='3d')
 for i in np.arange(dust_grain_max):
-    ax.scatter(data["X_" + str(i)].iloc[-1], data["Y_" + str(i)].iloc[-1],data["Y_" + str(i)].iloc[-1])
+    last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+    ax.scatter(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],data["Z_" + str(i)].iloc[last_val_index])
 ax.set_xlabel('X position')
 ax.set_ylabel('Y position')
 ax.set_zlabel('Z position') 
