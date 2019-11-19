@@ -112,10 +112,10 @@ dt = 1e-4#time step in rk4, needs to be small enough to be precise but large eno
 #eps = 1e-7
 dust_grain_max = 5 #dust grain max number
 print("grain number = ", dust_grain_max)
-frames = 1e6 #number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+frames = 1e2 #number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 print("frames limit = ",frames)
 temp_min = 1#minimum temperature for it to stop
-for_run = False
+for_run = True
 print("temp min = ",temp_min)
 print("for_run =",for_run)
 

@@ -9,8 +9,6 @@ import subprocess
 
 n_e0 = 1e15#electron and ion densities in bulk plasma
 n_i0 = 1e15
-
-g_z = 9.81#gravity
 e_charge = -1.6*1e-19
 i_charge = 1.6*1e-19
 grain_R = 7*1e-6
@@ -19,68 +17,32 @@ m_e = 9.11*1e-31
 m_D = ((4/3)*np.pi*grain_R**3)*(1.49*1e3)#mass of the dust grain given by volume*density where the density is space dust NEED TO GET BETTER VALUE
 epsilon_0 = 8.85*1e-12
 k_b = 1.38*1e-23
-mu = (m_i/m_e)#normalization used for convienience
-
 T_e = (2*1.6*1e-19)/k_b
 T_i = (0.03*1.6*1e-19)/k_b
-beta = T_i/T_e
-print("T_e = ",T_e)
-print("T_i = ",T_i)
-print("beta = ", beta)
-Z = 1#atomic number??
-a_0 = 1#intial guess for halley's method
-
 lambda_de = ((epsilon_0*k_b*T_e)/(n_e0*(e_charge**2)))**0.5
 lambda_di = ((epsilon_0*k_b*T_i)/(n_i0*(e_charge**2)))**0.5
 lambda_D = (1/(1/(lambda_de**2) + 1/(lambda_di**2)))**0.5#get lambda_D
-print("lambda_D =",lambda_D )
-print("lambda_D/R =",lambda_D/grain_R)
 container_height = 11*lambda_D#drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 container_radius = 100*lambda_D#set radius of contianer ie wall radius
 z_se = 10*lambda_D#distance from bottom of container to the sheath edge
 r_se = 100*lambda_D#distance from wall to the sheathe edge
 r_se_inv = container_radius - r_se
 
-wake_potential_below = 2*grain_R
-wake_charge_multiplier = 1e-1
-
-phi_wall_z = -100 #volts
-phi_wall_r = -1 #volts
-k_z_restore = -2*phi_wall_z/z_se**2#WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
-k_r_restore = -2*phi_wall_r/r_se**2
-
-v_B = (k_b*T_e/m_i)**0.5
-print("v_B =",v_B)
-
-alpha = 1e-9#drag coefficient
-time_list = [0]
-root = 1e-14#defined preciscion of root finding method used to get dust charge
-#S = 0.95
-
-dt = 1e-4#time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
-#eps = 1e-7
-dust_grain_max = 3 #dust grain max number
-print("grain number = ", dust_grain_max)
-frames = 1e6 #number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-print("frames limit = ",frames)
-temp_min = 1#minimum temperature for it to stop
-for_run = False
-print("temp min = ",temp_min)
-print("for_run =",for_run)
-
 #%%
-
+#COMPILE
+#UNI
 #subprocess.call(["g++", "H:\year 4\computational\MSci-Project-Dusty-Plasma-Crystals\MSci_project.cpp"])
-#subprocess.call("./a.out")
+#LAPTOP
+subprocess.call(["g++", "-o", "MSci_project", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project.cpp"])
+subprocess.call("MSci_project.exe")
+
+FILENAME = input("Data file name?")
 
 #%%
 
 import pandas as pd
-data = pd.read_csv("test.csv")
-
-#with open('test.csv', 'r') as f:
-   # data = list(reader(f, delimiter=';',quotechar=','))
-print(data)
+data = pd.read_csv(FILENAME)
+dust_grain_max = int((len(data.columns) - 1)/3)
 
 #%%
 
@@ -89,22 +51,66 @@ x_r_se = r_se_inv/lambda_D*np.cos(theta)
 y_r_se = r_se_inv/lambda_D*np.sin(theta)
 x_r_wall = container_radius/lambda_D*np.cos(theta)
 y_r_wall = container_radius/lambda_D*np.sin(theta)
-
-y_z_se = [z_se/lambda_D]*len(time_list)
+y_z_se = [z_se/lambda_D]*len(data["Time_list_0"])
 
 #%%
-fig = plt.figure(1)
-ax = fig.add_subplot(111, projection='3d')
 
-#for i in np.arange(len(data)):
-ax.scatter(data['X'], data['Y'], data['Z'])
-ax.set_xlabel('X position')
-ax.set_ylabel('Y position')
-ax.set_zlabel('Z position')
+plt.figure(1)
+plt.title("test")
+for i in np.arange(dust_grain_max):
+   plt.plot(data["X_" + str(i)],data["Y_" + str(i)])
+   plt.plot(data["X_" + str(i)][0], data["Y_" + str(i)].first_valid_index(),"+" ,color='blue')
+   plt.plot(data["X_" + str(i)].iloc[-1], data["Y_" + str(i)].iloc[-1],"+" ,color='red')
+plt.plot(x_r_se,y_r_se, "--", color = "black")
+plt.plot(x_r_wall,y_r_wall, color = "black")
+plt.xlabel("x/lambda_D")
+plt.ylabel("y/lambda_D")
+plt.grid()
+plt.xlim(-container_radius/lambda_D,container_radius/lambda_D)
+plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
+plt.savefig("Figures/Path_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
 plt.figure(2)
+plt.title("test - x")
+for i in np.arange(dust_grain_max):
+   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["X_" + str(i)]):],   data["X_" + str(i)])
+   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["X_" + str(i)])] , data["X_" + str(i)][0],"+" ,color='blue')
+   plt.plot(data["Time_list"].iloc[-1],data["X_" + str(i)].iloc[-1],"+" ,color='red')
+plt.xlabel("Time")
+plt.ylabel("x/lambda_D")
+plt.grid()
+plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
+plt.savefig("Figures/x_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
+
+plt.figure(3)
+plt.title("test - y")
+for i in np.arange(dust_grain_max):
+   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["Y_" + str(i)]):],   data["Y_" + str(i)])
+   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["Y_" + str(i)])] , data["Y_" + str(i)][0],"+" ,color='blue')
+   plt.plot(data["Time_list"][-1],data["Y_" + str(i)][-1],"+" ,color='red')
+plt.xlabel("Time")
+plt.ylabel("y/lambda_D")
+plt.grid()
+plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
+plt.savefig("Figures/y_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
+
+plt.figure(4)
+plt.title("test - z")
+for i in np.arange(dust_grain_max):
+   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["Z_" + str(i)]):],   data["Z_" + str(i)])
+   plt.plot(data["Time_list"][len(data["Time_list"]) - len(data["Z_" + str(i)])] , data["Z_" + str(i)][0],"+" ,color='blue')
+   plt.plot(data["Time_list"][-1],data["Z_" + str(i)][-1],"+" ,color='red')
+plt.xlabel("Time")
+plt.ylabel("z/lambda_D")
+plt.plot(data["Time_list"],y_z_se, "--", color = "black")
+plt.ylim(0,container_height/lambda_D)
+plt.grid()
+plt.savefig("Figures/z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
+
+plt.figure(5)
 plt.title("Final Positions")
-plt.plot(data['X'], data['Y'],"+" ,color='red')
+for i in np.arange(dust_grain_max):
+   plt.plot(data["X_" + str(i)].iloc[-1], data["Y_" + str(i)].iloc[-1],"+" ,color='red')
 plt.xlabel("x/lambda_D")
 plt.ylabel("y/lambda_D")
 plt.plot(x_r_se,y_r_se, "--", color = "black")
@@ -112,5 +118,15 @@ plt.plot(x_r_wall,y_r_wall, color = "black")
 plt.grid()
 plt.xlim(-container_radius/lambda_D,container_radius/lambda_D)
 plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
+plt.savefig("Figures/final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+
+fig = plt.figure(6)
+plt.title("Final Positions - 3D")
+ax = fig.add_subplot(111, projection='3d')
+for i in np.arange(dust_grain_max):
+    ax.scatter(data["X_" + str(i)].iloc[-1], data["Y_" + str(i)].iloc[-1],data["Y_" + str(i)].iloc[-1])
+ax.set_xlabel('X position')
+ax.set_ylabel('Y position')
+ax.set_zlabel('Z position') 
 
 plt.show()
