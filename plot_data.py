@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt#import module used to produce graphs
 from mpl_toolkits.mplot3d import Axes3D
 from csv import reader
 import subprocess
+import time
 
 #%%
 #DEFINE PLASMA DISCHARGE CONDITIONS
@@ -37,8 +38,16 @@ if status == "Compile":
     #UNI
     #subprocess.call(["g++", "H:\year 4\computational\MSci-Project-Dusty-Plasma-Crystals\MSci_project.cpp"])
     #LAPTOP
-    subprocess.call(["g++", "-o", "MSci_project", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project.cpp"])
-    subprocess.call("MSci_project.exe")
+    #os.environ["PROJECT_FILE"]
+   subprocess.call(["g++", "-o", "MSci_project", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project.cpp"])
+   """Import stuff to measure how long the code takes to run"""
+   start_time = time.time()
+   print("start_time =", time.ctime(time.time()))
+   subprocess.call("MSci_project.exe")
+   """prints time taken in minutes"""
+   print ("time taken: %s minutes" % ((time.time()-start_time)/60))
+
+#%%
 
 FILENAME = input("Data file name?")
 

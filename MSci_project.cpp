@@ -384,7 +384,7 @@ int main(){
 
     int dust_grain_max_input;//dust grain max number
     double frames;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-    double temp_min;
+    double temp_min = 300;
     bool for_run;
 
     cout << "Please Input: Dust Grain Max" << endl;
@@ -393,14 +393,8 @@ int main(){
     cin >> for_run;
     cout << "Please Input: Frames Limit" << endl;
     cin >> frames;
-    if(!for_run){
-        cout << "Please Input: Temp min" << endl;
-        cin >> temp_min;
-        cout << "Inputs = " << dust_grain_max_input << "," << for_run << "," << frames << "," << temp_min << endl;
-    }
-    else{
-        cout << "Inputs = " << dust_grain_max_input << "," << for_run << "," << frames << endl;
-    }
+    cout << "Inputs = " << dust_grain_max_input << "," << for_run << "," << frames << endl;
+    
     
     cout << "Running..." << endl;
 
