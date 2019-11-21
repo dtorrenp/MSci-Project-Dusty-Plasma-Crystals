@@ -9,7 +9,7 @@
 #include <vector>
 #include <string>
 
-using namespace std;
+//using namespace std;
 
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
 const double n_i0 = 1.0e15;
@@ -57,23 +57,23 @@ const double root = 1.0e-14;//preciscion of root finding method used to get dust
 const double dt = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 
 //make functions for element-wise multiplication and addition of vectors
-vector<double> element_mul(const vector<double>& a,double cst){
-    vector<double> c;
+std::vector<double> element_mul(const std::vector<double>& a,double cst){
+    std::vector<double> c;
     for(int i=0; i<a.size(); i++){
         c.push_back(a[i]*cst);
     }
     return c;
 }
 
-vector<double> element_add(const vector<double>& a,const vector<double>& b){
-    vector<double> c;
+std::vector<double> element_add(const std::vector<double>& a,const std::vector<double>& b){
+    std::vector<double> c;
     for(int i=0; i<a.size(); i++){
         c.push_back(a[i] + b[i]);
     }
     return c;
 }
 
-double v_abs(const vector<double>& a){
+double v_abs(const std::vector<double>& a){
     double c = 0.0;
     for(int i=0; i<a.size(); i++){
         c += pow(a[i],2);
@@ -86,16 +86,16 @@ class Dust_grain{
 
     private:
     public:
-    vector<double>W_vec;
-    vector<double>a_c;
-    vector<double>time_list_dust;
+    std::vector<double>W_vec;
+    std::vector<double>a_c;
+    std::vector<double>time_list_dust;
     bool to_be_deleted;
-    vector<double> x_history;
-    vector<double> y_history;
-    vector<double> z_history;
+    std::vector<double> x_history;
+    std::vector<double> y_history;
+    std::vector<double> z_history;
     double wake_charge;
     double v_i_z;
-    vector<double>wake_pos;
+    std::vector<double>wake_pos;
     double mass;
     double grain_R;
     double charge;
@@ -106,7 +106,7 @@ class Dust_grain{
     }
 
     double calc_speed(){
-        auto vel = vector<double> (W_vec.end() - 3,W_vec.end());        
+        auto vel = std::vector<double> (W_vec.end() - 3,W_vec.end());        
         return v_abs(vel);
     }
     
@@ -126,7 +126,7 @@ class Dust_grain{
         wake_pos.push_back(W_vec[2] - wake_potential_below);
     }
 
-    vector<double> f_der(vector<double> W_vec_f){
+    std::vector<double> f_der(std::vector<double> W_vec_f){
         double x_diff_new = W_vec_f[3];
         double y_diff_new = W_vec_f[4];
         double z_diff_new = W_vec_f[5];
@@ -156,44 +156,44 @@ class Dust_grain{
             vz_diff_new = (charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z,2))/mass;//drag, sheathe, gravity, coloumb force and ion drag force;
         }
 
-        vector<double> f = {x_diff_new, y_diff_new, z_diff_new, vx_diff_new, vy_diff_new, vz_diff_new};
+        std::vector<double> f = {x_diff_new, y_diff_new, z_diff_new, vx_diff_new, vy_diff_new, vz_diff_new};
         return f;
     }
     
     //rk4 is love, rk4 is life
     
-    vector<double> k_1(){
-        vector<double> res = f_der(W_vec);
-        vector<double> k_1_v = element_mul(res,dt);
+    std::vector<double> k_1(){
+        std::vector<double> res = f_der(W_vec);
+        std::vector<double> k_1_v = element_mul(res,dt);
         return k_1_v;
     }
     
-    vector<double> k_2(vector<double> k_1){
-        vector<double> W_vec_k2 = element_add(W_vec,element_mul(k_1,1/2) );
-        vector<double> res = f_der(W_vec_k2);
-        vector<double> k_2_v = element_mul(res,dt);
+    std::vector<double> k_2(std::vector<double> k_1){
+        std::vector<double> W_vec_k2 = element_add(W_vec,element_mul(k_1,1/2) );
+        std::vector<double> res = f_der(W_vec_k2);
+        std::vector<double> k_2_v = element_mul(res,dt);
         return k_2_v;
     }
     
-    vector<double> k_3(vector<double> k_2){
-        vector<double> W_vec_k3 = element_add(W_vec,element_mul(k_2,1/2));
-        vector<double> res = f_der(W_vec_k3);
-        vector<double> k_3_v = element_mul(res,dt);
+    std::vector<double> k_3(std::vector<double> k_2){
+        std::vector<double> W_vec_k3 = element_add(W_vec,element_mul(k_2,1/2));
+        std::vector<double> res = f_der(W_vec_k3);
+        std::vector<double> k_3_v = element_mul(res,dt);
         return k_3_v;
     }
     
-    vector<double> k_4(vector<double> k_3){
-        vector<double> W_vec_k4 = element_add(W_vec,k_3);
-        vector<double> res = f_der(W_vec_k4);
-        vector<double> k_4_v = element_mul(res,dt);
+    std::vector<double> k_4(std::vector<double> k_3){
+        std::vector<double> W_vec_k4 = element_add(W_vec,k_3);
+        std::vector<double> res = f_der(W_vec_k4);
+        std::vector<double> k_4_v = element_mul(res,dt);
         return k_4_v;
     }
     
     void step(){
-        vector<double> k1 = k_1();
-        vector<double> k2 = k_2(k1);
-        vector<double> k3 = k_3(k2);
-        vector<double> k4 = k_4(k3);
+        std::vector<double> k1 = k_1();
+        std::vector<double> k2 = k_2(k1);
+        std::vector<double> k3 = k_3(k2);
+        std::vector<double> k4 = k_4(k3);
         W_vec = element_add(W_vec,element_mul(element_add(element_add(    element_add(k1,element_mul(k2,2.0)) ,element_mul(k3,2.0)      ),k4),1.0/6.0));
     }
 };
@@ -210,9 +210,9 @@ class Dust_Container{
     int dust_grain_max;
 
     public:
-	vector<double> time_list;
-    vector<Dust_grain> Dust_grain_list;
-    vector<pair<Dust_grain&,Dust_grain&>> combs_list;
+	std::vector<double> time_list;
+    std::vector<Dust_grain> Dust_grain_list;
+    std::vector<std::pair<Dust_grain&,Dust_grain&>> combs_list;
     double v_squared_sum;
     double temperature;
 
@@ -276,7 +276,7 @@ class Dust_Container{
         combs_list.clear();
         for(int i = 0; i <  Dust_grain_list.size(); i++){
             for(int k = i+1;k < Dust_grain_list.size(); k++){ 
-                auto pair_comb = pair<Dust_grain&,Dust_grain&> (Dust_grain_list[i],Dust_grain_list[k]);
+                auto pair_comb = std::pair<Dust_grain&,Dust_grain&> (Dust_grain_list[i],Dust_grain_list[k]);
                 combs_list.push_back(pair_comb);
             }
         }
@@ -285,20 +285,20 @@ class Dust_Container{
     void inter_particle_ca(){        
         for (int i = 0; i < combs_list.size(); i++){
             double wake_charge; 
-            vector<double> force_c;
-            vector<double> r_01;
-            vector<double> r_01_pos;
-            vector<double> r_10_pos;
+            std::vector<double> force_c;
+            std::vector<double> r_01;
+            std::vector<double> r_01_pos;
+            std::vector<double> r_10_pos;
             double r_01_mag;
             double r_01_pos_mag;
             double r_10_pos_mag;
-            vector<double> force_c_pos_01{0,0,0};
-            vector<double> force_c_pos_10{0,0,0};
+            std::vector<double> force_c_pos_01{0,0,0};
+            std::vector<double> force_c_pos_10{0,0,0};
 
-            auto pos_0 = vector<double> (combs_list[i].first.W_vec.begin(),combs_list[i].first.W_vec.begin() + 3);
-            auto pos_1 = vector<double> (combs_list[i].second.W_vec.begin(),combs_list[i].second.W_vec.begin() + 3);
-            auto wake_pos_0 = vector<double> (combs_list[i].first.wake_pos.begin(),combs_list[i].first.wake_pos.begin() + 3);
-            auto wake_pos_1 = vector<double> (combs_list[i].second.wake_pos.begin(),combs_list[i].second.wake_pos.begin() + 3);
+            auto pos_0 = std::vector<double> (combs_list[i].first.W_vec.begin(),combs_list[i].first.W_vec.begin() + 3);
+            auto pos_1 = std::vector<double> (combs_list[i].second.W_vec.begin(),combs_list[i].second.W_vec.begin() + 3);
+            auto wake_pos_0 = std::vector<double> (combs_list[i].first.wake_pos.begin(),combs_list[i].first.wake_pos.begin() + 3);
+            auto wake_pos_1 = std::vector<double> (combs_list[i].second.wake_pos.begin(),combs_list[i].second.wake_pos.begin() + 3);
 
             r_01 =  element_add(pos_1, element_mul(pos_0,-1));
             r_01_mag = v_abs(r_01);
@@ -352,16 +352,16 @@ class Dust_Container{
     }
 };
 
-void write_csv(string filename, vector<pair<string, vector<double>>> dataset){
+void write_csv(std::string filename, std::vector<std::pair<std::string, std::vector<double>>> dataset){
     // Create an output filestream object
-    ofstream myFile(filename);
+    std::ofstream myFile(filename);
     
     // Send column names to the stream
     for(int j = 0; j < dataset.size(); ++j){
         myFile << dataset.at(j).first;//get the column title
         if(j != dataset.size() - 1) myFile << ","; // No comma at end of line
     }
-    myFile << endl;//next line
+    myFile << std::endl;//next line
     
     // Send data to the stream
     for(int i = 0; i < dataset.front().second.size(); ++i){//loop through rows
@@ -374,7 +374,7 @@ void write_csv(string filename, vector<pair<string, vector<double>>> dataset){
                 myFile << ","; // No comma at end of line
             } 
         }
-        myFile << endl;
+        myFile << std::endl;
     }    
     // Close the file
     myFile.close();
@@ -387,20 +387,20 @@ int main(){
     double temp_min = 300;
     bool for_run;
 
-    cout << "Please Input: Dust Grain Max" << endl;
-    cin >> dust_grain_max_input;
-    cout << "Please Input: For run(bool)" << endl;
-    cin >> for_run;
-    cout << "Please Input: Frames Limit" << endl;
-    cin >> frames;
-    cout << "Inputs = " << dust_grain_max_input << "," << for_run << "," << frames << endl;
+    std::cout << "Please Input: Dust Grain Max" << std::endl;
+    std::cin >> dust_grain_max_input;
+    std::cout << "Please Input: For run(bool)" << std::endl;
+    std::cin >> for_run;
+    std::cout << "Please Input: Frames Limit" << std::endl;
+    std::cin >> frames;
+    std::cout << "Inputs = " << dust_grain_max_input << "," << for_run << "," << frames << std::endl;
     
     
-    cout << "Running..." << endl;
+    std::cout << "Running..." << std::endl;
 
     //create the dusty plasma container
     double Dust_average_speed;
-    string filename = "Data/dust_grain_max_" + to_string(dust_grain_max_input);
+    std::string filename = "Data/dust_grain_max_" + std::to_string(dust_grain_max_input);
 
     Dust_Container Dusty_plasma_crystal = Dust_Container(container_radius, container_height, m_D, grain_R,dust_grain_max_input);
 
@@ -409,10 +409,11 @@ int main(){
             //""" do the loop advancing by dt each time"""
             Dusty_plasma_crystal.next_frame();
         }
-        filename += "_for_run_" + to_string(for_run);
+        filename += "_for_run_" + std::to_string(for_run);
     }
     else{
         for(int i = 0; i < frames; i++){
+            std::cout << Dusty_plasma_crystal.temperature << std::endl;
             if ( (Dusty_plasma_crystal.temperature < temp_min) && (Dusty_plasma_crystal.Dust_grain_list.size() == dust_grain_max_input) ){
                 break;
             }
@@ -420,24 +421,25 @@ int main(){
             Dusty_plasma_crystal.next_frame();
         }
         
-        filename += "_for_run_" + to_string(for_run) + "_temp_" + to_string(temp_min);
+        filename += "_for_run_" + std::to_string(for_run) + "_temp_" + std::to_string(temp_min);
     }
+    std::cout << "Simulation finished" << std::endl;
 
-    filename += "_frames_" + to_string(Dusty_plasma_crystal.time_list.size()) + ".csv";
+    filename += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size()) + ".csv";
 
-    vector<pair<string,vector<double>>> vals;
+    std::vector<std::pair<std::string,std::vector<double>>> vals;
 
     for(int i = 0 ; i < Dusty_plasma_crystal.Dust_grain_list.size(); i++){
-        vals.push_back(make_pair("X_" + to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].x_history));
-        vals.push_back(make_pair("Y_" + to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].y_history));
-        vals.push_back(make_pair("Z_" + to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].z_history));
-        vals.push_back(make_pair("Time_list_" + to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].time_list_dust));
+        vals.push_back(make_pair("X_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].x_history));
+        vals.push_back(make_pair("Y_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].y_history));
+        vals.push_back(make_pair("Z_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].z_history));
+        vals.push_back(make_pair("Time_list_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].time_list_dust));
     };
 
     //vals.push_back(make_pair("Time_list", Dusty_plasma_crystal.time_list));
     write_csv(filename, vals);
-    cout << "FILENAME:" << filename << endl;
-    cout << "done" << endl;
+    std::cout << "FILENAME:" << filename << std::endl;
+    std::cout << "done" << std::endl;
     return 0;
 }
 
