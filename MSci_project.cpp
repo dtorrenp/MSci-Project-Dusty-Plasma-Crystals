@@ -54,7 +54,7 @@ const double v_B = pow((k_b*T_e/m_i),0.5);
 const double alpha = 1.0e-9;//drag coefficient
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
 
-const double dt = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
+const double dt = 1.0e-3;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 
 //make functions for element-wise multiplication and addition of vectors
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
@@ -115,9 +115,9 @@ class Dust_grain{
         W_vec.push_back(-container_radius/6.0 + (rand()/(RAND_MAX + 1.0))*container_radius/3.0);//create random number centred about 0 with width container_radius/3
         W_vec.push_back(-container_radius/6.0 + (rand()/(RAND_MAX + 1.0))*container_radius/3.0);
         W_vec.push_back(container_height);
-        W_vec.push_back((rand()/(RAND_MAX + 1.0))*2.0e-12 - 1.0e-12);
-        W_vec.push_back((rand()/(RAND_MAX + 1.0))*2.0e-12 - 1.0e-12);
-        W_vec.push_back((rand()/(RAND_MAX + 1.0))*2.0e-12 - 1.0e-12);
+        W_vec.push_back(0.0);
+        W_vec.push_back(0.0);
+        W_vec.push_back(0.0);
         x_history.push_back(W_vec[0]/lambda_D);
         y_history.push_back(W_vec[1]/lambda_D);
         z_history.push_back(W_vec[2]/lambda_D);
@@ -345,6 +345,7 @@ class Dust_Container{
                 //""" if the last dust grain added has reached the lower sheathe electrode add another dust grain unless we have reached the dust grain number cap"""
                 Dust_grain_list.push_back(Dust_grain(m_D , grain_R , produce_q_D(),time_list.back()));
                 combs_list_produce();
+                std::cout << "HEEEEYYYY = "<< Dust_grain_list.size() << std::endl;
             }
         };
         calc_temperature();
@@ -413,7 +414,7 @@ int main(){
     }
     else{
         for(int i = 0; i < frames; i++){
-            std::cout << Dusty_plasma_crystal.temperature << std::endl;
+            //std::cout << Dusty_plasma_crystal.temperature << std::endl;
             if ( (Dusty_plasma_crystal.temperature < temp_min) && (Dusty_plasma_crystal.Dust_grain_list.size() == dust_grain_max_input) ){
                 break;
             }
