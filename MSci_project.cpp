@@ -105,7 +105,7 @@ class Dust_grain{
     double charge;
 
     Dust_grain(double m , double grain_r , double q, double time_init):mass(m),grain_R(grain_r),charge(q),a_c{0,0,0},time_list_dust{time_init},to_be_deleted(false),wake_charge(abs(q)*wake_charge_multiplier),v_i_z(0),
-    generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.5,0.2))
+    generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,0.2))
     {
         prod_W_vec();        
     }
