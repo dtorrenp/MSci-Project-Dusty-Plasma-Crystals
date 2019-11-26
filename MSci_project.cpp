@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include <random>
 
 //using namespace std;
 
@@ -36,7 +37,7 @@ const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5)
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
 
-const double container_height = 11.0*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
+const double drop_height = 9.72*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_radius = 100.0*lambda_D;//set radius of contianer ie wall radius
 const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
 const double r_se = 100.0*lambda_D;//distance from wall to the sheathe edge
@@ -52,9 +53,10 @@ const double k_r_restore = -2.0*phi_wall_r/pow(r_se,2);
 
 const double v_B = pow((k_b*T_e/m_i),0.5);
 const double alpha = 1.0e-9;//drag coefficient
+const double therm_coeff = sqrt(2*k_b*T_i*alpha);
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
 
-const double dt = 1.0e-3;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
+const double dt = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 
 //make functions for element-wise multiplication and addition of vectors
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
@@ -85,6 +87,8 @@ class Dust_grain{
     //dust grain class handles all properties relating to the dust grain it
 
     private:
+    std::default_random_engine generator;
+    std::normal_distribution<double> dist;
     public:
     std::vector<double>W_vec;
     std::vector<double>a_c;
@@ -100,7 +104,8 @@ class Dust_grain{
     double grain_R;
     double charge;
 
-    Dust_grain(double m , double grain_r , double q, double time_init):mass(m),grain_R(grain_r),charge(q),a_c{0,0,0},time_list_dust{time_init},to_be_deleted(false),wake_charge(abs(q)*wake_charge_multiplier),v_i_z(0)
+    Dust_grain(double m , double grain_r , double q, double time_init):mass(m),grain_R(grain_r),charge(q),a_c{0,0,0},time_list_dust{time_init},to_be_deleted(false),wake_charge(abs(q)*wake_charge_multiplier),v_i_z(0),
+    generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.5,0.2))
     {
         prod_W_vec();        
     }
@@ -114,7 +119,7 @@ class Dust_grain{
         //when creating new dust grains gives them random x,y positions so the dust grains dont just stack on 0,0//
         W_vec.push_back(-container_radius/6.0 + (rand()/(RAND_MAX + 1.0))*container_radius/3.0);//create random number centred about 0 with width container_radius/3
         W_vec.push_back(-container_radius/6.0 + (rand()/(RAND_MAX + 1.0))*container_radius/3.0);
-        W_vec.push_back(container_height);
+        W_vec.push_back(drop_height);
         W_vec.push_back(0.0);
         W_vec.push_back(0.0);
         W_vec.push_back(0.0);
@@ -137,23 +142,24 @@ class Dust_grain{
         
         //x,y components
         if (radial < r_se_inv){
-            vx_diff_new = - (alpha*W_vec_f[3])/mass + a_c[0];//drag and coloumb force
-            vy_diff_new = - (alpha*W_vec_f[4])/mass + a_c[1];
+            vx_diff_new = - (alpha*W_vec_f[3])/mass + a_c[0] + (therm_coeff*dist(generator))/mass;//drag and coloumb force
+            vy_diff_new = - (alpha*W_vec_f[4])/mass + a_c[1] + (therm_coeff*dist(generator))/mass;
         }
         else{
             double v_i_r = pow(pow(v_B,2) + i_charge*k_r_restore*pow(abs(radial - r_se_inv),2)/m_i,0.5);
             double a_i_r = (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_r,2))/mass;
             double rad_force_mag = (charge/mass)*k_r_restore*abs(radial - r_se_inv);
-            vx_diff_new = rad_force_mag*(W_vec_f[0]/radial) - (alpha*W_vec_f[3])/mass + a_c[0] + (W_vec_f[0]/radial)*a_i_r;//drag, sheathe and coloumb force and ion drag force
-            vy_diff_new = rad_force_mag*(W_vec_f[1]/radial) - (alpha*W_vec_f[4])/mass + a_c[1] + (W_vec_f[1]/radial)*a_i_r;
+            vx_diff_new = rad_force_mag*(W_vec_f[0]/radial) - (alpha*W_vec_f[3])/mass + a_c[0] + (W_vec_f[0]/radial)*a_i_r + (therm_coeff*dist(generator))/mass;//drag, sheathe and coloumb force and ion drag force
+            //std::cout << rad_force_mag*(W_vec_f[0]/radial)<< "," <<  - (alpha*W_vec_f[3])/mass << ","<< a_c[0] << ","<< + (W_vec_f[0]/radial)*a_i_r << "," << + (therm_coeff*dist(generator))/mass << std::endl;
+            vy_diff_new = rad_force_mag*(W_vec_f[1]/radial) - (alpha*W_vec_f[4])/mass + a_c[1] + (W_vec_f[1]/radial)*a_i_r + (therm_coeff*dist(generator))/mass;
         }
 
         if (W_vec_f[2] > z_se){
-            vz_diff_new = - g_z - (alpha*W_vec_f[5])/mass + a_c[2];//drag, gravity, coloumb force and ion drag force
+            vz_diff_new = - g_z - (alpha*W_vec_f[5])/mass + a_c[2] + (therm_coeff*dist(generator))/mass;//drag, gravity, coloumb force and ion drag force
         }
         else{
             double v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2.0*g_z*(W_vec_f[2] - z_se)),0.5);
-            vz_diff_new = (charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z,2))/mass;//drag, sheathe, gravity, coloumb force and ion drag force;
+            vz_diff_new = (charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z,2))/mass + (therm_coeff*dist(generator))/mass;//drag, sheathe, gravity, coloumb force and ion drag force;
         }
 
         std::vector<double> f = {x_diff_new, y_diff_new, z_diff_new, vx_diff_new, vy_diff_new, vz_diff_new};
@@ -201,9 +207,6 @@ class Dust_grain{
 class Dust_Container{
 
     private:
-
-    double container_radius;
-    double container_height;
     double m_D;
     double grain_R;
     double phi_grain;
@@ -216,7 +219,7 @@ class Dust_Container{
     double v_squared_sum;
     double temperature;
 
-	Dust_Container(double container_Radius, double container_Height, double M_D, double Grain_R, int Dust_grain_max) :time_list{0},container_radius(container_Radius), container_height(container_Height), m_D(M_D), grain_R(Grain_R), dust_grain_max(Dust_grain_max)
+	Dust_Container(double M_D, double Grain_R, int Dust_grain_max):time_list{0}, m_D(M_D), grain_R(Grain_R), dust_grain_max(Dust_grain_max)
     {
             phi_grain = OML_find_surface_potential();
             Dust_grain_list = {Dust_grain(m_D , grain_R , produce_q_D(), 0.0)};
@@ -345,7 +348,7 @@ class Dust_Container{
                 //""" if the last dust grain added has reached the lower sheathe electrode add another dust grain unless we have reached the dust grain number cap"""
                 Dust_grain_list.push_back(Dust_grain(m_D , grain_R , produce_q_D(),time_list.back()));
                 combs_list_produce();
-                std::cout << "HEEEEYYYY = "<< Dust_grain_list.size() << std::endl;
+                std::cout << Dust_grain_list.size() << std::endl;
             }
         };
         calc_temperature();
@@ -382,7 +385,7 @@ void write_csv(std::string filename, std::vector<std::pair<std::string, std::vec
 }
 
 int main(){
-
+    std::cout << therm_coeff << std::endl;
     int dust_grain_max_input;//dust grain max number
     double frames;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
     double temp_min = 300;
@@ -403,7 +406,7 @@ int main(){
     double Dust_average_speed;
     std::string filename = "Data/dust_grain_max_" + std::to_string(dust_grain_max_input);
 
-    Dust_Container Dusty_plasma_crystal = Dust_Container(container_radius, container_height, m_D, grain_R,dust_grain_max_input);
+    Dust_Container Dusty_plasma_crystal = Dust_Container(m_D, grain_R,dust_grain_max_input);
 
     if (for_run){
         for(int i = 0; i < frames; i++){
@@ -414,7 +417,7 @@ int main(){
     }
     else{
         for(int i = 0; i < frames; i++){
-            //std::cout << Dusty_plasma_crystal.temperature << std::endl;
+            std::cout << Dusty_plasma_crystal.temperature << std::endl;
             if ( (Dusty_plasma_crystal.temperature < temp_min) && (Dusty_plasma_crystal.Dust_grain_list.size() == dust_grain_max_input) ){
                 break;
             }
@@ -424,6 +427,8 @@ int main(){
         
         filename += "_for_run_" + std::to_string(for_run) + "_temp_" + std::to_string(temp_min);
     }
+    std::cout << "Final Termperature = " << Dusty_plasma_crystal.temperature << std::endl;
+
     std::cout << "Simulation finished" << std::endl;
 
     filename += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size()) + ".csv";
