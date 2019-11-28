@@ -41,7 +41,6 @@ const double drop_height = 9.72*lambda_D;//drop particles from this height, low 
 const double container_radius = 100.0*lambda_D;//set radius of contianer ie wall radius
 const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
 const double r_se = 100.0*lambda_D;//distance from wall to the sheathe edge
-const double r_se_inv = container_radius - r_se;
 
 const double wake_potential_below = 2*grain_R;
 const double wake_charge_multiplier = 1e-1;
@@ -132,75 +131,34 @@ class Dust_grain{
     }
 
     std::vector<double> f_der(std::vector<double> W_vec_f){
-        double x_diff_new = W_vec_f[3];
-        double y_diff_new = W_vec_f[4];
-        double z_diff_new = W_vec_f[5];
-        double vx_diff_new;
-        double vy_diff_new;
-        double vz_diff_new;
-        double radial = pow((pow(W_vec_f[0],2) + pow(W_vec_f[1],2)),0.5);
-        
+        std::vector<double> f; 
+        f.push_back(W_vec_f[3]);
+        f.push_back(W_vec_f[4]);
+        f.push_back(W_vec_f[5]);
         //x,y components
-        if (radial < r_se_inv){
-            vx_diff_new = - (alpha*W_vec_f[3])/mass + a_c[0] + (therm_coeff*dist(generator))/mass;//drag and coloumb force
-            vy_diff_new = - (alpha*W_vec_f[4])/mass + a_c[1] + (therm_coeff*dist(generator))/mass;
-        }
-        else{
-            double v_i_r = pow(pow(v_B,2) + i_charge*k_r_restore*pow(abs(radial - r_se_inv),2)/m_i,0.5);
-            double a_i_r = (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_r,2))/mass;
-            double rad_force_mag = (charge/mass)*k_r_restore*abs(radial - r_se_inv);
-            vx_diff_new = rad_force_mag*(W_vec_f[0]/radial) - (alpha*W_vec_f[3])/mass + a_c[0] + (W_vec_f[0]/radial)*a_i_r + (therm_coeff*dist(generator))/mass;//drag, sheathe and coloumb force and ion drag force
-            //std::cout << rad_force_mag*(W_vec_f[0]/radial)<< "," <<  - (alpha*W_vec_f[3])/mass << ","<< a_c[0] << ","<< + (W_vec_f[0]/radial)*a_i_r << "," << + (therm_coeff*dist(generator))/mass << std::endl;
-            vy_diff_new = rad_force_mag*(W_vec_f[1]/radial) - (alpha*W_vec_f[4])/mass + a_c[1] + (W_vec_f[1]/radial)*a_i_r + (therm_coeff*dist(generator))/mass;
-        }
-
+        double radial = pow((pow(W_vec_f[0],2) + pow(W_vec_f[1],2)),0.5);
+        double rad_force_mag = (charge/mass)*k_r_restore*abs(radial);
+        //std::cout << rad_force_mag*(W_vec_f[0]/radial) << "," <<  - (alpha*W_vec_f[3])/mass << "," << + a_c[0] << "," <<  + (therm_coeff*dist(generator))/mass << std::endl;
+        f.push_back(rad_force_mag*(W_vec_f[0]/radial) - (alpha*W_vec_f[3])/mass + a_c[0] + (therm_coeff*dist(generator))/mass);//drag, sheathe and coloumb force and ion drag force
+        f.push_back(rad_force_mag*(W_vec_f[1]/radial) - (alpha*W_vec_f[4])/mass + a_c[1] + (therm_coeff*dist(generator))/mass);
+        //z component
         if (W_vec_f[2] > z_se){
-            vz_diff_new = - g_z - (alpha*W_vec_f[5])/mass + a_c[2] + (therm_coeff*dist(generator))/mass;//drag, gravity, coloumb force and ion drag force
+            f.push_back(- g_z - (alpha*W_vec_f[5])/mass + a_c[2] + (therm_coeff*dist(generator))/mass);//drag, gravity, coloumb force and ion drag force
         }
         else{
             double v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2.0*g_z*(W_vec_f[2] - z_se)),0.5);
-            vz_diff_new = (charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z,2))/mass + (therm_coeff*dist(generator))/mass;//drag, sheathe, gravity, coloumb force and ion drag force;
-        }
-
-        std::vector<double> f = {x_diff_new, y_diff_new, z_diff_new, vx_diff_new, vy_diff_new, vz_diff_new};
+            f.push_back((charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z,2))/mass + (therm_coeff*dist(generator))/mass);//drag, sheathe, gravity, coloumb force and ion drag force;
+        };
         return f;
     }
-    
-    //rk4 is love, rk4 is life
-    
-    std::vector<double> k_1(){
-        std::vector<double> res = f_der(W_vec);
-        std::vector<double> k_1_v = element_mul(res,dt);
-        return k_1_v;
-    }
-    
-    std::vector<double> k_2(std::vector<double> k_1){
-        std::vector<double> W_vec_k2 = element_add(W_vec,element_mul(k_1,1/2) );
-        std::vector<double> res = f_der(W_vec_k2);
-        std::vector<double> k_2_v = element_mul(res,dt);
-        return k_2_v;
-    }
-    
-    std::vector<double> k_3(std::vector<double> k_2){
-        std::vector<double> W_vec_k3 = element_add(W_vec,element_mul(k_2,1/2));
-        std::vector<double> res = f_der(W_vec_k3);
-        std::vector<double> k_3_v = element_mul(res,dt);
-        return k_3_v;
-    }
-    
-    std::vector<double> k_4(std::vector<double> k_3){
-        std::vector<double> W_vec_k4 = element_add(W_vec,k_3);
-        std::vector<double> res = f_der(W_vec_k4);
-        std::vector<double> k_4_v = element_mul(res,dt);
-        return k_4_v;
-    }
-    
+
     void step(){
-        std::vector<double> k1 = k_1();
-        std::vector<double> k2 = k_2(k1);
-        std::vector<double> k3 = k_3(k2);
-        std::vector<double> k4 = k_4(k3);
-        W_vec = element_add(W_vec,element_mul(element_add(element_add(    element_add(k1,element_mul(k2,2.0)) ,element_mul(k3,2.0)      ),k4),1.0/6.0));
+        //std::cout << "step" << std::endl;
+        std::vector<double> k1 = element_mul(f_der(W_vec),dt);
+        std::vector<double> k2 = element_mul(f_der(element_add(W_vec,element_mul(k1,1/2))),dt);
+        std::vector<double> k3 = element_mul(f_der(element_add(W_vec,element_mul(k2,1/2))),dt);
+        std::vector<double> k4 = element_mul(f_der(element_add(W_vec,k3)),dt);
+        W_vec = element_add(W_vec,element_mul(element_add(element_add(element_add(k1,element_mul(k2,2.0)),element_mul(k3,2.0)),k4),1.0/6.0));
     }
 };
 
@@ -272,7 +230,6 @@ class Dust_Container{
 
     void calc_temperature(){
         temperature = m_D*(v_squared_sum/Dust_grain_list.size())/(3*k_b);
-        //cout << m_D << "," << v_squared_sum/Dust_grain_list.size() << "," << 1/(3*k_b) << endl;
     }
 
     void combs_list_produce(){
@@ -385,7 +342,6 @@ void write_csv(std::string filename, std::vector<std::pair<std::string, std::vec
 }
 
 int main(){
-    std::cout << therm_coeff << std::endl;
     int dust_grain_max_input;//dust grain max number
     double frames;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
     double temp_min = 300;
