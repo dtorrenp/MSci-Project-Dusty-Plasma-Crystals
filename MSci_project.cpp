@@ -176,6 +176,7 @@ class Dust_Container{
     std::vector<std::pair<Dust_grain&,Dust_grain&>> combs_list;
     double v_squared_sum;
     double temperature;
+    std::vector<double> temperature_history;
 
 	Dust_Container(double M_D, double Grain_R, int Dust_grain_max):time_list{0}, m_D(M_D), grain_R(Grain_R), dust_grain_max(Dust_grain_max)
     {
@@ -230,6 +231,7 @@ class Dust_Container{
 
     void calc_temperature(){
         temperature = m_D*(v_squared_sum/Dust_grain_list.size())/(3*k_b);
+        temperature_history.push_back(temperature);
     }
 
     void combs_list_produce(){
@@ -346,6 +348,7 @@ int main(){
     double frames;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
     double temp_min = 300;
     bool for_run;
+    std::vector<double> speed_list;
 
     std::cout << "Please Input: Dust Grain Max" << std::endl;
     std::cin >> dust_grain_max_input;
@@ -396,7 +399,10 @@ int main(){
         vals.push_back(make_pair("Y_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].y_history));
         vals.push_back(make_pair("Z_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].z_history));
         vals.push_back(make_pair("Time_list_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].time_list_dust));
+        speed_list.push_back(Dusty_plasma_crystal.Dust_grain_list[i].calc_speed());
     };
+    vals.push_back(make_pair("Temperature_list", Dusty_plasma_crystal.temperature_history));
+    vals.push_back(make_pair("Speed_list", speed_list));
 
     //vals.push_back(make_pair("Time_list", Dusty_plasma_crystal.time_list));
     write_csv(filename, vals);
