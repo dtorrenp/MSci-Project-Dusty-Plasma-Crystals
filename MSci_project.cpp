@@ -92,7 +92,6 @@ class Dust_grain{
     std::vector<double>W_vec;
     std::vector<double>a_c;
     std::vector<double>time_list_dust;
-    bool to_be_deleted;
     std::vector<double> x_history;
     std::vector<double> y_history;
     std::vector<double> z_history;
@@ -103,7 +102,7 @@ class Dust_grain{
     double grain_R;
     double charge;
 
-    Dust_grain(double m , double grain_r , double q, double time_init):mass(m),grain_R(grain_r),charge(q),a_c{0,0,0},time_list_dust{time_init},to_be_deleted(false),wake_charge(abs(q)*wake_charge_multiplier),v_i_z(0),
+    Dust_grain(double m , double grain_r , double q, double time_init):mass(m),grain_R(grain_r),charge(q),a_c{0,0,0},time_list_dust{time_init},wake_charge(abs(q)*wake_charge_multiplier),v_i_z(0),
     generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,0.2))
     {
         prod_W_vec();        
@@ -146,7 +145,7 @@ class Dust_grain{
             f.push_back(- g_z - (alpha*W_vec_f[5])/mass + a_c[2] + (therm_coeff*dist(generator))/mass);//drag, gravity, coloumb force and ion drag force
         }
         else{
-            double v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2.0*g_z*(W_vec_f[2] - z_se)),0.5);
+            v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2.0*g_z*(W_vec_f[2] - z_se)),0.5);
             f.push_back((charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z,2))/mass + (therm_coeff*dist(generator))/mass);//drag, sheathe, gravity, coloumb force and ion drag force;
         };
         return f;
