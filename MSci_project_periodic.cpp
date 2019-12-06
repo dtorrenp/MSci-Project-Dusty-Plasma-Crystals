@@ -14,6 +14,10 @@
 
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
 const double n_i0 = 1.0e15;
+const double n_n0 = 1.0e17;//ella.M.schiama paper for neutral density in tokomaks
+const double Z = 1;//atomic number??
+const double Z_n = 18;//atomic number for argon neutral gas
+const double a_0 = 1;//intial guess for halley's method
 
 const double g_z = 9.81;//gravity
 const double e_charge = -1.6*1e-19;
@@ -21,23 +25,21 @@ const double i_charge = 1.6*1e-19;
 const double grain_R = 7*1e-6;
 const double m_i = 1.67*1e-27;
 const double m_e = 9.11*1e-31;
+const double m_n = Z_n*m_i;
 const double m_D = ((4.0/3.0)*M_PI*pow(grain_R,3))*(1.49*1e3);//mass of the dust grain given by volume*density where the density is space dust NEED TO GET BETTER VALUE
 const double epsilon_0 = 8.85*1e-12;
 const double k_b = 1.38*1e-23;
 const double mu = (m_i/m_e);//normalization used for convienience
 
 const double T_e = (2.0*1.6*1e-19)/k_b;
-const double T_i = (0.03*1.6*1e-19)/k_b;
+const double T_i = 10*(0.03*1.6*1e-19)/k_b;
 const double beta = T_i/T_e;
-
-const double Z = 1;//atomic number??
-const double a_0 = 1;//intial guess for halley's method
 
 const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
 
-const double drop_height = 9.72*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
+const double drop_height = 10.5*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_length = 10.0*lambda_D;//set radius of contianer ie wall radius
 const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
 
@@ -48,8 +50,11 @@ const double phi_wall_z = -100.0;//volts
 const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
 
 const double v_B = pow((k_b*T_e/m_i),0.5);
-const double alpha = 1.0e-9;//drag coefficient
-const double therm_coeff = sqrt(2*k_b*T_i*alpha);
+const double v_T = pow((k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
+const double alpha_n = (8/3)*sqrt(2*M_PI)*pow(grain_R,2)*m_n*n_n0*v_T;
+const double alpha_i = (M_PI*pow(grain_R,2)*m_i*n_i0;
+const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
+const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i);
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
 
 const double dt = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
@@ -79,6 +84,17 @@ double v_abs(const std::vector<double>& a){
     return pow(c,0.5);
 }
 
+void print_vector(const std::vector<double>& a){
+    std::cout << "[";
+    for(int i=0; i<a.size(); i++){
+        std::cout << a[i];
+        if(i != a.size() - 1){
+                std::cout << ","; // No comma at end of line
+            } 
+    }
+    std::cout << "]"<< std::endl;
+}
+
 class Dust_grain{
     //dust grain class handles all properties relating to the dust grain it
 
@@ -99,7 +115,7 @@ class Dust_grain{
     double charge;
 
     Dust_grain(double m , double grain_r , double q, double time_init):mass(m),grain_R(grain_r),charge(q),a_c{0,0,0},time_list_dust{time_init},wake_charge(std::abs(q)*wake_charge_multiplier),v_i_z(0),
-    generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,(k_b*T_i)/m))
+    generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m)))
     {
         prod_W_vec();        
     }
@@ -128,16 +144,15 @@ class Dust_grain{
         f.push_back(W_vec_f[4]);
         f.push_back(W_vec_f[5]);
         //x,y components
-        f.push_back(- (alpha*W_vec_f[3])/mass + a_c[0] + (therm_coeff*dist(generator))/mass);//drag, sheathe and coloumb force and ion drag force
-        //std::cout << - (alpha*W_vec_f[3])/mass << "," << a_c[0] << "," <<(therm_coeff*dist(generator))/mass << std::endl;
-        f.push_back( - (alpha*W_vec_f[4])/mass + a_c[1] + (therm_coeff*dist(generator))/mass);
+        f.push_back( - (alpha_n*W_vec_f[3])/mass - M_PI*pow(grain_R,2)*m_i*n_i0*pow(W_vec_f[3],2)/mass  + a_c[0] + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);//drag, sheathe and coloumb force and ion drag force
+        f.push_back( - (alpha_n*W_vec_f[4])/mass - M_PI*pow(grain_R,2)*m_i*n_i0*pow(W_vec_f[4],2)/mass  + a_c[1] + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);
         //z component
         if (W_vec_f[2] > z_se){
-            f.push_back(- g_z - (alpha*W_vec_f[5])/mass + a_c[2] + (therm_coeff*dist(generator))/mass);//drag, gravity, coloumb force and ion drag force
+            f.push_back(- g_z - (alpha_n*W_vec_f[5])/mass + a_c[2] + (therm_coeff*dist(generator))/mass);//drag, gravity, coloumb force and ion drag force
         }
         else{
             v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2.0*g_z*(W_vec_f[2] - z_se)),0.5);
-            f.push_back((charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z,2))/mass + (therm_coeff*dist(generator))/mass);//drag, sheathe, gravity, coloumb force and ion drag force;
+             f.push_back((charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha_n*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z - W_vec_f[5],2))/mass + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);//drag, sheathe, gravity, coloumb force and ion drag force;
         };
         return f;
     }
@@ -252,26 +267,25 @@ class Dust_Container{
         }
     }
 
-    void inter_particle_ca(){        
+    void inter_particle_ca(){   
         for (int i = 0; i < combs_list.size(); i++){
             double wake_charge; 
             std::vector<double> force_c;
             std::vector<double> r_01;
-            std::vector<double> r_01_pos;
-            std::vector<double> r_10_pos;
+            std::vector<double> r_01_pos{0,0,0};
+            std::vector<double> r_10_pos{0,0,0};
             double r_01_mag;
             double r_01_pos_mag;
             double r_10_pos_mag;
-            std::vector<double> force_c_pos_01;
-            std::vector<double> force_c_pos_10;
-
+            std::vector<double> force_c_pos_01{0,0,0};
+            std::vector<double> force_c_pos_10{0,0,0};
             auto pos_0 = std::vector<double> (combs_list[i].first.W_vec.begin(),combs_list[i].first.W_vec.begin() + 3);
             auto pos_1 = std::vector<double> (combs_list[i].second.W_vec.begin(),combs_list[i].second.W_vec.begin() + 3);
-
+            
             r_01 =  element_add(pos_1, element_mul(pos_0,-1));
-
+            
             if(std::abs(r_01[0]) > container_length/2){
-                //std::cout << "x" << std::endl;
+
                 if(pos_1[0] > 0){
                     r_01[0] = pos_1[0] - pos_0[0] - container_length;
                 }
@@ -279,8 +293,9 @@ class Dust_Container{
                     r_01[0] = pos_1[0] - pos_0[0] + container_length;
                 }
             }
+
             if(std::abs(r_01[1]) > container_length/2){
-                //std::cout << "y" << std::endl;
+
                 if(pos_1[1] > 0){
                     r_01[1] = pos_1[1] - pos_0[1] - container_length;
                 }
@@ -291,31 +306,28 @@ class Dust_Container{
 
             r_01_mag = v_abs(r_01);
             force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((combs_list[i].second.grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
-            //std::cout <<"force on 0 due to 1" << std::endl;
-            //std::cout << force_c[0] << "," << force_c[1] << "," << force_c[2] << std::endl;
-            if(pos_1[2] < z_se){
-                r_01_pos.push_back(r_01[0]);
-                r_01_pos.push_back(r_01[1]);
-                r_01_pos.push_back(r_01[2] - wake_potential_below);
 
+            if(pos_1[2] < z_se){
+                r_01_pos[0] = r_01[0];
+                r_01_pos[1] = r_01[1];
+                r_01_pos[2] = r_01[2] - wake_potential_below;
                 r_01_pos_mag = v_abs(r_01_pos);
                 wake_charge = std::abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].second.wake_charge;
                 force_c_pos_01 = element_mul(r_01_pos,-((combs_list[i].first.charge*wake_charge)/(4*M_PI*epsilon_0))* exp((combs_list[i].second.grain_R/lambda_D) - (r_01_pos_mag/lambda_D)) * (1/(pow(r_01_pos_mag,3)) + 1/(lambda_D*(pow(r_01_pos_mag,2)))));
-                //std::cout <<"force on 0 due to wake of 1" << std::endl;
-                //std::cout << force_c_pos_01[0] << "," << force_c_pos_01[1] << "," << force_c_pos_01[2] << std::endl;
             };
+
             if(pos_0[2] < z_se){
-                r_10_pos.push_back(-r_01[0]);
-                r_10_pos.push_back(-r_01[1]);
-                r_10_pos.push_back(-r_01[2] - wake_potential_below);
+                r_10_pos[0] = -r_01[0];
+                r_10_pos[1] = -r_01[1];
+                r_10_pos[2] = -r_01[2] - wake_potential_below;
                 r_10_pos_mag = v_abs(r_10_pos);
                 wake_charge = std::abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].first.wake_charge;
                 force_c_pos_10 = element_mul(r_10_pos,-((combs_list[i].second.charge*wake_charge)/(4*M_PI*epsilon_0))*exp((combs_list[i].first.grain_R/lambda_D) - (r_10_pos_mag/lambda_D)) * (1/(pow(r_10_pos_mag,3)) + 1/(lambda_D*(pow(r_10_pos_mag,2)))));
-                //std::cout <<"force on 1 due to wake of 0" << std::endl;
-                //std::cout << force_c_pos_10[0] << "," << force_c_pos_10[1] << "," << force_c_pos_10[2] << std::endl;
+
             };
+
             combs_list[i].first.a_c = element_add(combs_list[i].first.a_c,element_add(element_mul(force_c,1/combs_list[i].first.mass), element_mul(force_c_pos_01,1/combs_list[i].first.mass)));
-            combs_list[i].second.a_c = element_add(combs_list[i].second.a_c,element_add(element_mul(force_c,1/-combs_list[i].second.mass) , element_mul(force_c_pos_10,1/combs_list[i].second.mass)));
+            combs_list[i].second.a_c = element_add(combs_list[i].second.a_c,element_add(element_mul(force_c,1/-combs_list[i].second.mass) , element_mul(force_c_pos_10,1/combs_list[i].second.mass)));  
         }
     }
 
@@ -347,8 +359,10 @@ class Dust_Container{
                 std::cout << Dust_grain_list.size() << std::endl;
             }
         };
+        //std::cout<< "yeet" << std::endl;
         calc_temperature();
         v_squared_sum = 0;
+        //std::cout<< "stonks" << std::endl;
     }
 };
 
@@ -395,7 +409,6 @@ int main(){
     std::cin >> frames;
     std::cout << "Inputs = " << dust_grain_max_input << "," << for_run << "," << frames << std::endl;
     
-    
     std::cout << "Running..." << std::endl;
 
     //create the dusty plasma container
@@ -403,6 +416,8 @@ int main(){
     std::string filename = "Data/Periodic_dust_grain_max_" + std::to_string(dust_grain_max_input);
 
     Dust_Container Dusty_plasma_crystal = Dust_Container(m_D, grain_R,dust_grain_max_input);
+
+    //std::cout << "container" << std::endl;
 
     if (for_run){
         for(int i = 0; i < frames; i++){
@@ -420,8 +435,7 @@ int main(){
             }
             //""" do the loop advancing by dt each time"""
             Dusty_plasma_crystal.next_frame();
-        }
-        
+        } 
         filename += "_for_run_" + std::to_string(for_run) + "_temp_" + std::to_string(temp_min);
     }
     std::cout << "Simulation finished" << std::endl;

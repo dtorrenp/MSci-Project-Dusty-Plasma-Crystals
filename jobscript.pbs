@@ -1,0 +1,33 @@
+#!/bin/sh
+#PBS -l walltime=24:00:00
+#PBS -l select=1:ncpus=24:mem=16000mb:ompthreads=24
+#PBS -N rscan_0.05_-3.12_1.0_1.0
+#PBS -J 0-19
+#PBS -q pqplasma2
+module load intel-suite
+mkdir -p Data
+pars=("5e-06" "1e-05" "1.5e-05" "2e-05" "2.5e-05" "3e-05" "3.5e-05" "4e-05" "4.5e-05" "5e-05" "5.5e-05" "6e-05" "6.5e-05" "7e-05" "7.5e-05" "8e-05" "8.5e-05" "9e-05" "9.5e-05" "0.0001")
+par=${pars[${PBS_ARRAY_INDEX}]}
+bcpar=$(sed -E 's/([+-]?[0-9.]+)[eE]\+?(-?)([0-9]+)/(\1*10^\2\3)/g' <<<${par})
+OutputFile=DiMPl_0.05_-3.12_1.0_${par}_1.0
+nval=$(echo "150.000000*(1+5.000000*(1/0.050000+sqrt(8.854187817620*10^-12/(1000000000000000000.000000*1.60217662*10^-19))/${bcpar}))^2" | bc -l)
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "457763982+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_0.txt
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "1193249452+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_1.txt
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "98868202+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_2.txt
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "2005983071+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_3.txt
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "1466386836+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_4.txt
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "327143060+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_5.txt
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "1605099949+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_6.txt
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "632250002+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_7.txt
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "1100908583+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_8.txt
+pbsexec -grace 5 $WORK/DMP/DiMPl -m 0.05 -p -3.12 -v 1.0 -r ${par} -ti 1.0 -n 1 -c 1.0 -no 1 -t 0.01 -ni 1e+18 -b 5.0 -i $(echo "$nval / 1" | bc) -j $(echo "$nval / 1" | bc) -sa $(echo "$nval / 1" | bc) -se $(echo "1321587616+24*${PBS_ARRAY_INDEX}" | bc)
+mv $PWD/Data/DiMPl_LinMom.txt $WORK/DMP/Output/${OutputFile}_LinMom_9.txt
