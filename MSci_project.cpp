@@ -50,7 +50,7 @@ const double phi_wall_r = -1.0;//volts
 const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
 const double k_r_restore = -2.0*phi_wall_r/pow(r_se,2);
 
-const double v_B = pow((k_b*T_e/m_i),0.5);
+const double v_B = pow((k_b*T_e/m_i),0.5)
 const double alpha = 1.0e-9;//drag coefficient
 const double therm_coeff = sqrt(2*k_b*T_i*alpha);
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
@@ -103,7 +103,7 @@ class Dust_grain{
     double charge;
 
     Dust_grain(double m , double grain_r , double q, double time_init):mass(m),grain_R(grain_r),charge(q),a_c{0,0,0},time_list_dust{time_init},wake_charge(abs(q)*wake_charge_multiplier),v_i_z(0),
-    generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,0.2))
+    generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt(k_b*T_i/m_i)))
     {
         prod_W_vec();        
     }
