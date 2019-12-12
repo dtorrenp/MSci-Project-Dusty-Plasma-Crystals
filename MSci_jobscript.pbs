@@ -2,6 +2,6 @@
 #PBS -l walltime=01:00:00
 #PBS -l select=1:ncpus=24:mem=16000mb:ompthreads=24
 mkdir -p Data
-g++ Work/FINITE/MSci_project_HPC.cpp -o MSci_project_HPC
-pbsexec -grace 5 Work/FINITE/MSci_project_HPC
-mv $PWD/Data/dust_grain_max_100_for_run_1_frames_10000.csv Work/FINITE/DATA/dust_grain_max_100_for_run_1_frames_10000.csv
+g++ WORK/FINITE/MSci_project_HPC.cpp -o MSci_project_HPC
+pbsexec -grace 5 WORK/FINITE/MSci_project_HPC
+mv $PWD/Data/dust_grain_max_100_for_run_1_frames_10000.csv WORK/FINITE/DATA/dust_grain_max_100_for_run_1_frames_10000.csv
