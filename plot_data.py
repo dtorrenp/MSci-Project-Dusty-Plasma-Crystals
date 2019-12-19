@@ -20,7 +20,7 @@ m_D = ((4/3)*np.pi*grain_R**3)*(1.49*1e3)#mass of the dust grain given by volume
 epsilon_0 = 8.85*1e-12
 k_b = 1.38*1e-23
 T_e = (2*1.6*1e-19)/k_b
-T_i = 10*(0.03*1.6*1e-19)/k_b
+T_i = (0.03*1.6*1e-19)/k_b
 lambda_de = ((epsilon_0*k_b*T_e)/(n_e0*(e_charge**2)))**0.5
 lambda_di = ((epsilon_0*k_b*T_i)/(n_i0*(e_charge**2)))**0.5
 lambda_D = (1/(1/(lambda_de**2) + 1/(lambda_di**2)))**0.5#get lambda_D
@@ -78,20 +78,6 @@ temp_ion = [T_i]*len(data["Time_list_0"])
 
 #%%
 if boundry == "Periodic":
-
-   plt.figure()
-   plt.title("Motion")
-   for i in np.arange(dust_grain_max):
-      last_val_index = np.where(data["Time_list_" + str(i)].values == last_time_val)
-      plt.plot(data["X_" + str(i)],data["Y_" + str(i)])
-      plt.plot(data["X_" + str(i)][0], data["Y_" + str(i)][0],"+" ,color='blue')
-      plt.plot(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
-   plt.xlabel("x/lambda_D")
-   plt.ylabel("y/lambda_D")
-   plt.grid()
-   plt.xlim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
-   plt.ylim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
-   plt.savefig("Figures/Periodic_Path_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
 
    plt.figure()
    plt.title("test - x")
@@ -169,22 +155,6 @@ else:
    y_r_wall = container_radius/lambda_D*np.sin(theta)
 
    plt.figure()
-   plt.title("Motion")
-   for i in np.arange(dust_grain_max):
-      last_val_index = np.where(data["Time_list_" + str(i)].values == last_time_val)
-      plt.plot(data["X_" + str(i)],data["Y_" + str(i)])
-      plt.plot(data["X_" + str(i)][0], data["Y_" + str(i)][0],"+" ,color='blue')
-      plt.plot(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
-   plt.plot(x_r_se,y_r_se, "--", color = "black")
-   plt.plot(x_r_wall,y_r_wall, color = "black")
-   plt.xlabel("x/lambda_D")
-   plt.ylabel("y/lambda_D")
-   plt.grid()
-   plt.xlim(-container_radius/lambda_D,container_radius/lambda_D)
-   plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
-   plt.savefig("Figures/Path_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
-
-   plt.figure()
    plt.title("test - x")
    for i in np.arange(dust_grain_max):
       last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
@@ -254,8 +224,7 @@ else:
    plt.grid()
    plt.savefig("Figures/Periodic_Speed_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
 
-print(layer_plots)
-if layer_plots:
+if layer_plots == "yes":
    # creating an empty list 
    layers = [] 
    # number of elemetns as input 
@@ -268,7 +237,6 @@ if layer_plots:
 
    if boundry == "Periodic":
       for v in np.arange(len(layers) - 1):
-         print(v)
          plt.figure()
          plt.title("Final Positions layers")
          for i in np.arange(dust_grain_max):
@@ -333,6 +301,7 @@ if layer_plots:
       ax.set_xlabel('X position')
       ax.set_ylabel('Y position')
       ax.set_zlabel('Z position')
+
 plt.show()
 
 

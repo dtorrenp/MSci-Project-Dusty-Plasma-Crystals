@@ -9,56 +9,56 @@
 #include <vector>
 #include <string>
 #include <random>
+#include <chrono>
 
-//using namespace std;
+//CRITICAL VALUES
+const int dust_grain_max_input = 100;//dust grain max number
+const double frames = 1e4;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+const double temp_min = 300;
+const bool for_run = 1;
 
+//CONSTANTS TO FUCK ABOUT WITH
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
 const double n_i0 = 1.0e15;
-const double n_n0 = 1.0e17;//ella.M.schiama paper for neutral density in tokomaks
+const double n_n0 = 1.0e24;//WAAAAAYYYYYYYYYYYY TO LARGE
 const double Z = 1;//atomic number??
 const double Z_n = 18;//atomic number for argon neutral gas
+const double grain_R = 7*1e-6;
+const double dust_grain_density = 1.49*1e3;
+const double phi_wall_z = -100.0;//volts
+const double wake_potential_below = 2*grain_R;
+const double wake_charge_multiplier = 1e-1;
 const double a_0 = 1;//intial guess for halley's method
+const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
+const double dt = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 
+//CONSTANTS DEPENDANT ON ACTUAL PHYSICS
 const double g_z = 9.81;//gravity
 const double e_charge = -1.6*1e-19;
 const double i_charge = 1.6*1e-19;
-const double grain_R = 7*1e-6;
 const double m_i = 1.67*1e-27;
 const double m_e = 9.11*1e-31;
 const double m_n = Z_n*m_i;
-const double m_D = ((4.0/3.0)*M_PI*pow(grain_R,3))*(1.49*1e3);//mass of the dust grain given by volume*density where the density is space dust NEED TO GET BETTER VALUE
+const double m_D = ((4.0/3.0)*M_PI*pow(grain_R,3))*dust_grain_density;//mass of the dust grain given by volume*density where the density is space dust NEED TO GET BETTER VALUE
 const double epsilon_0 = 8.85*1e-12;
 const double k_b = 1.38*1e-23;
 const double mu = (m_i/m_e);//normalization used for convienience
-
-const double T_e = (2.0*1.6*1e-19)/k_b;
-const double T_i = 10*(0.03*1.6*1e-19)/k_b;
+const double T_e = 2.0*(1.6*1e-19)/k_b;
+const double T_i = 0.03*(1.6*1e-19)/k_b;
 const double beta = T_i/T_e;
-
 const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
-
 const double drop_height = 10.5*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_length = 10.0*lambda_D;//set radius of contianer ie wall radius
 const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
-
-const double wake_potential_below = 2*grain_R;
-const double wake_charge_multiplier = 1e-1;
-
-const double phi_wall_z = -100.0;//volts
 const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
-
 const double v_B = pow((k_b*T_e/m_i),0.5);
-const double v_T = pow((k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
-const double alpha_n = (8/3)*sqrt(2*M_PI)*pow(grain_R,2)*m_n*n_n0*v_T;
-const double alpha_i = (M_PI*pow(grain_R,2)*m_i*n_i0;
+const double v_Tn = pow((k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
+const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn;
+const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0;
 const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
 const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i);
-const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
-
-const double dt = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
-
 //make functions for element-wise multiplication and addition of vectors
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
     std::vector<double> c;
@@ -144,15 +144,15 @@ class Dust_grain{
         f.push_back(W_vec_f[4]);
         f.push_back(W_vec_f[5]);
         //x,y components
-        f.push_back( - (alpha_n*W_vec_f[3])/mass - M_PI*pow(grain_R,2)*m_i*n_i0*pow(W_vec_f[3],2)/mass  + a_c[0] + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);//drag, sheathe and coloumb force and ion drag force
-        f.push_back( - (alpha_n*W_vec_f[4])/mass - M_PI*pow(grain_R,2)*m_i*n_i0*pow(W_vec_f[4],2)/mass  + a_c[1] + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);
+        f.push_back( - (alpha_n*W_vec_f[3])/mass + a_c[0] + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);//drag, sheathe and coloumb force and ion drag force
+        f.push_back( - (alpha_n*W_vec_f[4])/mass + a_c[1] + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);
         //z component
         if (W_vec_f[2] > z_se){
             f.push_back(- g_z - (alpha_n*W_vec_f[5])/mass + a_c[2] + (therm_coeff*dist(generator))/mass);//drag, gravity, coloumb force and ion drag force
         }
         else{
             v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2.0*g_z*(W_vec_f[2] - z_se)),0.5);
-             f.push_back((charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z - (alpha_n*W_vec_f[5])/mass  + a_c[2] + (M_PI*pow(grain_R,2)*m_i*n_i0*pow(v_i_z - W_vec_f[5],2))/mass + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);//drag, sheathe, gravity, coloumb force and ion drag force;
+             f.push_back((charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z + a_c[2] - (alpha_n*W_vec_f[5])/mass - (alpha_i*pow(v_i_z - W_vec_f[5],2))/mass + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);//drag, sheathe, gravity, coloumb force and ion drag force;
         };
         return f;
     }
@@ -395,10 +395,8 @@ void write_csv(std::string filename, std::vector<std::pair<std::string, std::vec
 }
 
 int main(){
-    int dust_grain_max_input = 100;//dust grain max number
-    double frames = 1e4;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-    double temp_min = 300;
-    bool for_run = 1;
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
     std::vector<double> speed_list;
 
     //create the dusty plasma container
@@ -450,5 +448,9 @@ int main(){
     write_csv(filename, vals);
     std::cout << "FILENAME:" << filename << std::endl;
     std::cout << "done" << std::endl;
+
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+
     return 0;
 }
