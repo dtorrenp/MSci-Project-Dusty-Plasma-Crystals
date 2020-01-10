@@ -46,19 +46,19 @@ if status == "Compile":
     #LAPTOP
     #os.environ["PROJECT_FILE"]
    if boundry == "Periodic":
-      subprocess.call(["g++", "-o", "MSci_project_periodic", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project_periodic.cpp"])
+      subprocess.call(["g++", "-o", "MSci_project_periodic_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project_periodic_HPC.cpp"])
       """Import stuff to measure how long the code takes to run"""
       start_time = time.time()
       print("start_time =", time.ctime(time.time()))
-      subprocess.call("MSci_project_periodic.exe")
+      subprocess.call("MSci_project_periodic_HPC.exe")
       """prints time taken in minutes"""
       print ("time taken: %s minutes" % ((time.time()-start_time)/60))
    elif boundry == "Finite":
-      subprocess.call(["g++", "-o", "MSci_project", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project.cpp"])
+      subprocess.call(["g++", "-o", "MSci_project_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project_HPC.cpp"])
       """Import stuff to measure how long the code takes to run"""
       start_time = time.time()
       print("start_time =", time.ctime(time.time()))
-      subprocess.call("MSci_project.exe")
+      subprocess.call("MSci_project_HPC.exe")
       """prints time taken in minutes"""
       print ("time taken: %s minutes" % ((time.time()-start_time)/60))
    else:

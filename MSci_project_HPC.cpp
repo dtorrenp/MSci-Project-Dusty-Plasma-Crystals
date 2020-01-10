@@ -12,10 +12,8 @@
 #include <chrono>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 100;//dust grain max number
+const int dust_grain_max_input = 20;//dust grain max number
 const double frames = 1e4;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-const double temp_min = 300;
-const bool for_run = 1;
 
 //CONSTANTS TO FUCK ABOUT WITH
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
@@ -29,9 +27,12 @@ const double phi_wall_z = -100.0;//volts
 const double phi_wall_r = -1.0;//volts
 const double wake_potential_below = 2*grain_R;
 const double wake_charge_multiplier = 0.5;
+const double coulomb_limit = 5;
 const double a_0 = 1;//intial guess for halley's method
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
-const double dt = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
+const double dt_small = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
+const double dt_large = 1.0e-3;
+const double temp_condition = 1e3;
 
 //CONSTANTS DEPENDANT ON ACTUAL PHYSICS
 const double g_z = 9.81;//gravity
@@ -111,7 +112,7 @@ class Dust_grain{
     }
 
     double calc_speed(){
-        auto vel = std::vector<double> (W_vec.end() - 3,W_vec.end());        
+        std::vector<double> vel (W_vec.end() - 3,W_vec.end());        
         return v_abs(vel);
     }
     
@@ -153,7 +154,7 @@ class Dust_grain{
         return f;
     }
 
-    void step(){
+    void step(double dt){
         //std::cout << "step" << std::endl;
         std::vector<double> k1 = element_mul(f_der(W_vec),dt);
         std::vector<double> k2 = element_mul(f_der(element_add(W_vec,element_mul(k1,1/2))),dt);
@@ -230,7 +231,7 @@ class Dust_Container{
         combs_list.clear();
         for(int i = 0; i <  Dust_grain_list.size(); i++){
             for(int k = i+1;k < Dust_grain_list.size(); k++){ 
-                auto pair_comb = std::pair<Dust_grain&,Dust_grain&> (Dust_grain_list[i],Dust_grain_list[k]);
+                std::pair<Dust_grain&,Dust_grain&> pair_comb (Dust_grain_list[i],Dust_grain_list[k]);
                 combs_list.push_back(pair_comb);
             }
         }
@@ -240,10 +241,10 @@ class Dust_Container{
         double r_01_mag;
         while(Dust_grain_list.size() < dust_grain_max){
             Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
-            auto pos_1 = std::vector<double> (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);
+            std::vector<double> pos_1 (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);//COULD I USE LESS MEMORY?
 
             for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
-                auto pos_0 = std::vector<double> (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
+                std::vector<double> pos_0 (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
                 r_01_mag = v_abs(element_add(pos_1, element_mul(pos_0,-1)));
                 if (r_01_mag <= grain_R){
                     Dust_grain_list.pop_back();
@@ -269,13 +270,18 @@ class Dust_Container{
             std::vector<double> force_c_pos_01{0,0,0};
             std::vector<double> force_c_pos_10{0,0,0};
 
-            auto pos_0 = std::vector<double> (combs_list[i].first.W_vec.begin(),combs_list[i].first.W_vec.begin() + 3);
-            auto pos_1 = std::vector<double> (combs_list[i].second.W_vec.begin(),combs_list[i].second.W_vec.begin() + 3);
-            auto wake_pos_0 = std::vector<double> (combs_list[i].first.wake_pos.begin(),combs_list[i].first.wake_pos.begin() + 3);
-            auto wake_pos_1 = std::vector<double> (combs_list[i].second.wake_pos.begin(),combs_list[i].second.wake_pos.begin() + 3);
+            std::vector<double> pos_0 (combs_list[i].first.W_vec.begin(),combs_list[i].first.W_vec.begin() + 3);
+            std::vector<double> pos_1 (combs_list[i].second.W_vec.begin(),combs_list[i].second.W_vec.begin() + 3);
 
             r_01 =  element_add(pos_1, element_mul(pos_0,-1));
             r_01_mag = v_abs(r_01);
+            if (r_01_mag > coulomb_limit*lambda_D){
+                continue;
+            }
+
+            std::vector<double> wake_pos_0 (combs_list[i].first.wake_pos.begin(),combs_list[i].first.wake_pos.begin() + 3);
+            std::vector<double> wake_pos_1 (combs_list[i].second.wake_pos.begin(),combs_list[i].second.wake_pos.begin() + 3);
+
             r_01_pos =  element_add(wake_pos_1,element_mul( pos_0,-1));
             r_01_pos_mag = v_abs(r_01_pos);
             r_10_pos = element_add(wake_pos_0,element_mul(pos_1,-1));
@@ -297,7 +303,7 @@ class Dust_Container{
         }
     }
 
-    void next_frame(){
+    void next_frame(double dt){
     //The big daddy of the code, this functions loops over advancing the simulation by a time step dt
         //cout<< Dust_grain_list.size() << endl;
         inter_particle_ca();
@@ -306,7 +312,7 @@ class Dust_Container{
         #pragma omp parallel for
         for (int i = 0; i < Dust_grain_list.size(); i++){
             //advance via the rk4 and add the predicted postiosn to the momentary list
-            Dust_grain_list[i].step();
+            Dust_grain_list[i].step(dt);
             Dust_grain_list[i].time_list_dust.push_back(time_list.back());
             Dust_grain_list[i].a_c = {0,0,0};//NOT SURE ABOUT THIS
             Dust_grain_list[i].x_history.push_back(Dust_grain_list[i].W_vec[0]/lambda_D);
@@ -351,19 +357,23 @@ int main(){
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     std::vector<double> speed_list;
     std::cout << "Running..." << std::endl;
+    double dt = dt_small;
 
     Dust_Container Dusty_plasma_crystal = Dust_Container(dust_grain_max_input);
 
     for(int i = 0; i < frames; i++){
         //""" do the loop advancing by dt each time"""
-        Dusty_plasma_crystal.next_frame();
+        //std::cout << Dusty_plasma_crystal.temperature << std::endl;
+        if(Dusty_plasma_crystal.temperature < temp_condition){
+            dt = dt_large;
+        }
+        Dusty_plasma_crystal.next_frame(dt);
     }
     std::cout << "Simulation finished" << std::endl;
 
-    std::string filename = "Data/Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    std::string filename = "HPC_Data/Dust_grain_max_" + std::to_string(dust_grain_max_input);
     filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename += "_container_radius_" + std::to_string(container_radius);
-    filename += "_n_n0_" + std::to_string(n_n0);
     filename += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
     filename += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size());
     filename += ".csv";
