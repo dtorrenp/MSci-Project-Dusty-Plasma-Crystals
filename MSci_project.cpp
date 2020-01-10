@@ -99,7 +99,7 @@ class Dust_grain{
     double charge;
 
     Dust_grain(double q, double time_init):charge(q),a_c{0,0,0},time_list_dust{time_init},wake_charge(abs(q)*wake_charge_multiplier),v_i_z(0),
-    generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m)))
+    generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m_D)))
     {       
         prod_W_vec();   
     }
@@ -185,6 +185,8 @@ class Dust_Container{
         double W_0_H = find_W_H(a_0,k,root);
         double n_double = W_0_H - (beta/Z);
         double phi_grain =  (k_b*T_e*n_double)/(e_charge);// unormalize it
+        std::cout << phi_grain << std::endl;
+        std::cout << 4.0*M_PI*epsilon_0*grain_R*phi_grain << std::endl;
         return 4.0*M_PI*epsilon_0*grain_R*phi_grain;
     }
     double f_x(double x_n, double z){
@@ -232,16 +234,17 @@ class Dust_Container{
     }
     
     void create_dust_grains(){
+        double r_01_mag;
         while(Dust_grain_list.size() < dust_grain_max){
-            Dust_grain_list.push_back(Dust_grain(m_D , grain_R , q_D,time_list.back()));
+            Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
             auto pos_1 = std::vector<double> (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);
 
             for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
                 auto pos_0 = std::vector<double> (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
                 r_01_mag = v_abs(element_add(pos_1, element_mul(pos_0,-1)));
                 if (r_01_mag <= grain_R){
-                    Dust_grain_list.pop_back()
-                    break
+                    Dust_grain_list.pop_back();
+                    break;
                 }
             }
             std::cout << Dust_grain_list.size() << std::endl;
@@ -275,19 +278,19 @@ class Dust_Container{
             r_10_pos = element_add(wake_pos_0,element_mul(pos_1,-1));
             r_10_pos_mag = v_abs(r_10_pos);
 
-            force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((combs_list[i].second.grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
+            force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
 
             if(pos_1[2] < z_se){
                 wake_charge = abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].second.wake_charge;
-                force_c_pos_01 = element_mul(r_01_pos,-((combs_list[i].first.charge*wake_charge)/(4*M_PI*epsilon_0))* exp((combs_list[i].second.grain_R/lambda_D) - (r_01_pos_mag/lambda_D)) * (1/(pow(r_01_pos_mag,3)) + 1/(lambda_D*(pow(r_01_pos_mag,2)))));
+                force_c_pos_01 = element_mul(r_01_pos,-((combs_list[i].first.charge*wake_charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_pos_mag/lambda_D)) * (1/(pow(r_01_pos_mag,3)) + 1/(lambda_D*(pow(r_01_pos_mag,2)))));
             };
             if(pos_0[2] < z_se){
                 wake_charge = abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].first.wake_charge;
-                force_c_pos_10 = element_mul(r_10_pos,-((combs_list[i].second.charge*wake_charge)/(4*M_PI*epsilon_0))* exp((combs_list[i].first.grain_R/lambda_D) - (r_10_pos_mag/lambda_D)) * (1/(pow(r_10_pos_mag,3)) + 1/(lambda_D*(pow(r_10_pos_mag,2)))));
+                force_c_pos_10 = element_mul(r_10_pos,-((combs_list[i].second.charge*wake_charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_10_pos_mag/lambda_D)) * (1/(pow(r_10_pos_mag,3)) + 1/(lambda_D*(pow(r_10_pos_mag,2)))));
             };
 
-            combs_list[i].first.a_c = element_add(combs_list[i].first.a_c,element_add(element_mul(force_c,1/combs_list[i].first.m_D), element_mul(force_c_pos_01,1/combs_list[i].first.m_D)));
-            combs_list[i].second.a_c = element_add(combs_list[i].second.a_c,element_add(element_mul(force_c,1/-combs_list[i].second.m_D) , element_mul(force_c_pos_10,1/combs_list[i].second.m_D)));
+            combs_list[i].first.a_c = element_add(combs_list[i].first.a_c,element_add(element_mul(force_c,1/m_D), element_mul(force_c_pos_01,1/m_D)));
+            combs_list[i].second.a_c = element_add(combs_list[i].second.a_c,element_add(element_mul(force_c,1/-m_D) , element_mul(force_c_pos_10,1/m_D)));
         }
     }
 
