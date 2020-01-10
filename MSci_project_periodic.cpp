@@ -20,7 +20,7 @@ const double grain_R = 7*1e-6;
 const double dust_grain_density = 1.49*1e3;
 const double phi_wall_z = -100.0;//volts
 const double wake_potential_below = 2*grain_R;
-const double wake_charge_multiplier = 1e-1;
+const double wake_charge_multiplier = 0.5;
 const double a_0 = 1;//intial guess for halley's method
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
 const double dt = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
@@ -42,7 +42,7 @@ const double beta = T_i/T_e;
 const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
-const double drop_height = 10.5*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
+const double drop_height = 9.9*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_length = 10.0*lambda_D;//set radius of contianer ie wall radius
 const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
 const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
@@ -146,7 +146,7 @@ class Dust_grain{
         }
         else{
             v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2.0*g_z*(W_vec_f[2] - z_se)),0.5);
-             f.push_back((charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z + a_c[2] - (alpha_n*W_vec_f[5])/mass - (alpha_i*pow(v_i_z - W_vec_f[5],2))/mass + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass);//drag, sheathe, gravity, coloumb force and ion drag force;
+            f.push_back((charge/mass)*k_z_restore*(W_vec_f[2] - z_se) - g_z + a_c[2] - (alpha_n*W_vec_f[5])/mass - (alpha_i*pow(v_i_z - W_vec_f[5],2))/mass + (therm_coeff*dist(generator))/mass + (therm_coeff_i*dist(generator))/mass); 
         };
         return f;
     }
@@ -261,7 +261,8 @@ class Dust_Container{
         }
     }
 
-    void inter_particle_ca(){   
+    void inter_particle_ca(){  
+        //#pragma omp parallel for 
         for (int i = 0; i < combs_list.size(); i++){
             double wake_charge; 
             std::vector<double> force_c;
@@ -333,6 +334,7 @@ class Dust_Container{
 
 		time_list.push_back(time_list.back() + dt);
 
+        //#pragma omp parallel for
         for (int i = 0; i < Dust_grain_list.size(); i++){
             //advance via the rk4 and add the predicted postiosn to the momentary list
             //std::cout<< "hey" << std::endl;
