@@ -242,10 +242,11 @@ class Dust_Container{
     }
 
     void create_dust_grains(){
-        for(int i = 0; i < dust_grain_max; i++){
+        while(Dust_grain_list.size() < dust_grain_max){
             Dust_grain_list.push_back(Dust_grain(m_D , grain_R , q_D,time_list.back()));
             auto pos_1 = std::vector<double> (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);
-            for(int v = 0; i <  Dust_grain_list.size() - 1; i++){
+
+            for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
                 auto pos_0 = std::vector<double> (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
                 r_01_mag = v_abs(element_add(pos_1, element_mul(pos_0,-1)));
                 if (r_01_mag <= grain_R){
@@ -254,7 +255,7 @@ class Dust_Container{
                 }
             }
             std::cout << Dust_grain_list.size() << std::endl;
-        }
+        } 
         combs_list_produce();
     }
 
