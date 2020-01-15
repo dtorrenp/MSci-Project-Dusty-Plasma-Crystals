@@ -12,52 +12,57 @@
 #include <chrono>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 20;//dust grain max number
-const double frames = 1e4;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+const int dust_grain_max_input = 20; //max number of dust grains
+const double frames = 1e4; //number of frames; time scales quadratically with number of frames
 
-//CONSTANTS TO FUCK ABOUT WITH
-const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
-const double n_i0 = 1.0e15;
-const double n_n0 = 1.0e24;//WAAAAAYYYYYYYYYYYY TO LARGE
-const double Z = 1;//atomic number??
-const double Z_n = 18;//atomic number for argon neutral gas
-const double grain_R = 7*1e-6;
-const double dust_grain_density = 1.49*1e3;
-const double phi_wall_z = -100.0;//volts
-const double wake_potential_below = 2*grain_R;
-const double wake_charge_multiplier = 0.5;
+//CHANGEABLE PARAMETERS
+const double n_e0 = 1.0e15; //electron number density (in bulk plasma)
+const double n_i0 = 1.0e15; //ion number density (in bulk plasma)
+const double n_n0 = 1.0e24; //neutrals number density (in bulk plasma)
+const double Z = 1; //ion atomic number
+const double Z_n = 18; //neutrals atomic number (Ar)
+const double grain_R = 7*1e-6; //dust grain radius
+const double dust_grain_density = 1.49*1e3; //dust density
+const double phi_wall_z = -100.0; // vertical wall potential [in volts]
+const double a_0 = 1; //intial guess for Halley's method
+const double root = 1.0e-14; //epsilon precision for Halley's method
+const double dt_small = 1.0e-4; //initial small RK4 timestep for strong forces
+const double dt_large = 1.0e-3; //large RK4 timestep
+const double temp_condition = 1e3; //small to large timestep transition condition
+
+const double wake_potential_below = 2*grain_R; //wake charge distance below dust grain
+const double wake_charge_multiplier = 0.5; //wake charge fraction of ion charge
 const double coulomb_limit = 5;
-const double a_0 = 1;//intial guess for halley's method
-const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
-const double dt_small = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
-const double dt_large = 1.0e-3;
-const double temp_condition = 1e3;
 
-//CONSTANTS DEPENDANT ON ACTUAL PHYSICS
-const double g_z = 9.81;//gravity
-const double e_charge = -1.6*1e-19;
-const double i_charge = 1.6*1e-19;
-const double m_i = 1.67*1e-27;
-const double m_e = 9.11*1e-31;
-const double m_n = Z_n*m_i;
-const double m_D = ((4.0/3.0)*M_PI*pow(grain_R,3))*dust_grain_density;//m_D of the dust grain given by volume*density where the density is space dust NEED TO GET BETTER VALUE
+//PHYSICAL CONSTANTS
+const double g_z = 9.81; //gravitational field strength
+const double e_charge = -1.6*1e-19; //electron charge
+const double i_charge = 1.6*1e-19; //ion charge
+const double m_i = 1.67*1e-27; //electron mass
+const double m_e = 9.11*1e-31; //ion mass
+const double m_n = Z_n*m_i; //neutrals mass
+const double m_D = ((4.0/3.0)*M_PI*pow(grain_R,3))*dust_grain_density; //mass of spherical dust grain
 const double epsilon_0 = 8.85*1e-12;
-const double k_b = 1.38*1e-23;
-const double mu = (m_i/m_e);//normalization used for convienience
-const double T_e = 2.0*(1.6*1e-19)/k_b;
-const double T_i = 0.03*(1.6*1e-19)/k_b;
-const double beta = T_i/T_e;
-const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
-const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
-const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
-const double drop_height = 9.9*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
-const double container_length = 10.0*lambda_D;//set radius of contianer ie wall radius
-const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
+const double k_b = 1.38*1e-23; //Boltzmann constant
+const double mu = (m_i/m_e); //mass normalisation
+
+const double T_e = 2.0*(1.6*1e-19)/k_b; //electron temperature
+const double T_i = 0.03*(1.6*1e-19)/k_b; //ion temperature
+const double beta = T_i/T_e; //temperature normalisation
+
+const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5); //electron Debye length
+const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5); //ion Debye length
+const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5); //total Debye length
+
+const double drop_height = 9.9*lambda_D; //dust drop height
+const double container_length = 10.0*lambda_D; //container radius
+const double z_se = 10.0*lambda_D;//sheath edge height
+
 const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
 const double v_B = pow((k_b*T_e/m_i),0.5);
 const double v_Tn = pow((k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
-const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn;
-const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0;
+const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn; //neutral drag coefficient
+const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0; //ion drag coefficient
 const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
 const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i);
 //make functions for element-wise multiplication and addition of vectors
