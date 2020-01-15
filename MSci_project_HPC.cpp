@@ -12,8 +12,9 @@
 #include <chrono>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 20;//dust grain max number
-const double frames = 1e4;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+const int dust_grain_max_input = 500;//dust grain max number
+const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+const double time_limit = 1.0;
 
 //CONSTANTS TO FUCK ABOUT WITH
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
@@ -24,15 +25,17 @@ const double Z_n = 18;//atomic number for argon neutral gas
 const double grain_R = 7*1e-6;
 const double dust_grain_density = 1.49*1e3;
 const double phi_wall_z = -100.0;//volts
-const double phi_wall_r = -1.0;//volts
+const double phi_wall_r = -10.0;//volts
 const double wake_potential_below = 2*grain_R;
 const double wake_charge_multiplier = 0.5;
 const double coulomb_limit = 5;
 const double a_0 = 1;//intial guess for halley's method
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
-const double dt_small = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
-const double dt_large = 1.0e-3;
-const double temp_condition = 1e3;
+const double dt_a = 1.0e-4;
+const double dt_c = 1.0e-3;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
+const double dt_b = 1.0e-2;
+const double dt_condition_b = 1e3;
+const double dt_condition_c = 1e4;
 
 //CONSTANTS DEPENDANT ON ACTUAL PHYSICS
 const double g_z = 9.81;//gravity
@@ -51,10 +54,11 @@ const double beta = T_i/T_e;
 const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
-const double drop_height = 9.9*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
-const double container_radius = 100.0*lambda_D;//set radius of contianer ie wall radius
+const double drop_height = 10.1*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
+const double container_radius = 25.0*lambda_D;//set radius of contianer ie wall radius
+//const double container_dust_dist_creation = sqrt(container_radius/(2*lambda_D));
 const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
-const double r_se = 100.0*lambda_D;//distance from wall to the sheathe edge
+const double r_se = 25.0*lambda_D;//distance from wall to the sheathe edge
 const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
 const double k_r_restore = -2.0*phi_wall_r/pow(r_se,2);
 const double v_B = pow((k_b*T_e/m_i),0.5);
@@ -118,9 +122,10 @@ class Dust_grain{
     
     void prod_W_vec(){
         //when creating new dust grains gives them random x,y positions so the dust grains dont just stack on 0,0//
-        W_vec.push_back(-container_radius/6.0 + (rand()/(RAND_MAX + 1.0))*container_radius/3.0);//create random number centred about 0 with width container_radius/3
-        W_vec.push_back(-container_radius/6.0 + (rand()/(RAND_MAX + 1.0))*container_radius/3.0);
-        W_vec.push_back(drop_height);
+        //std::cout << container_dust_dist_creation << "," <<(-container_dust_dist_creation/2.0 + (rand()/(RAND_MAX + 1.0))*container_dust_dist_creation)/lambda_D << std::endl;
+        W_vec.push_back(-container_radius /4.0 + (rand()/(RAND_MAX + 1.0))*container_radius/2);//create random number centred about 0 with width container_radius/3
+        W_vec.push_back(-container_radius /4.0 + (rand()/(RAND_MAX + 1.0))*container_radius /2);
+        W_vec.push_back(drop_height + (rand()/(RAND_MAX + 1.0))*lambda_D/2);
         W_vec.push_back(0.0);
         W_vec.push_back(0.0);
         W_vec.push_back(0.0);
@@ -181,6 +186,7 @@ class Dust_Container{
 	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0}
     {
             q_D = OML_charge();
+            //Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
             create_dust_grains();
     } 
 
@@ -242,11 +248,11 @@ class Dust_Container{
         while(Dust_grain_list.size() < dust_grain_max){
             Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
             std::vector<double> pos_1 (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);//COULD I USE LESS MEMORY?
-
+    
             for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
                 std::vector<double> pos_0 (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
                 r_01_mag = v_abs(element_add(pos_1, element_mul(pos_0,-1)));
-                if (r_01_mag <= grain_R){
+                if (r_01_mag <= 2*grain_R){//NEEDS TO BE DIAMETER SO THEY CANT BE IN EACH OTHER
                     Dust_grain_list.pop_back();
                     break;
                 }
@@ -319,6 +325,14 @@ class Dust_Container{
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
             v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);
+
+            /*
+            if( (i == (Dust_grain_list.size() - 1)) && (Dust_grain_list[i].W_vec[2] < z_se) && (Dust_grain_list.size() < dust_grain_max) ){
+                //""" if the last dust grain added has reached the lower sheathe electrode add another dust grain unless we have reached the dust grain number cap"""
+                Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
+                combs_list_produce();
+            }
+            */
         };
         calc_temperature();
         v_squared_sum = 0;
@@ -357,18 +371,19 @@ int main(){
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     std::vector<double> speed_list;
     std::cout << "Running..." << std::endl;
-    double dt = dt_small;
 
     Dust_Container Dusty_plasma_crystal = Dust_Container(dust_grain_max_input);
 
-    for(int i = 0; i < frames; i++){
-        //""" do the loop advancing by dt each time"""
-        //std::cout << Dusty_plasma_crystal.temperature << std::endl;
-        if(Dusty_plasma_crystal.temperature < temp_condition){
-            dt = dt_large;
-        }
-        Dusty_plasma_crystal.next_frame(dt);
+    while (Dusty_plasma_crystal.temperature >  dt_condition_b){
+        Dusty_plasma_crystal.next_frame(dt_a);
     }
+    while (Dusty_plasma_crystal.temperature >  dt_condition_c){
+        Dusty_plasma_crystal.next_frame(dt_b);
+    }
+    while (Dusty_plasma_crystal.time_list.back() < time_limit){
+        Dusty_plasma_crystal.next_frame(dt_c);
+    }
+
     std::cout << "Simulation finished" << std::endl;
 
     std::string filename = "HPC_Data/Dust_grain_max_" + std::to_string(dust_grain_max_input);

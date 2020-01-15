@@ -128,7 +128,7 @@ class Dust_grain{
         //when creating new dust grains gives them random x,y positions so the dust grains dont just stack on 0,0//
         W_vec.push_back((rand()/(RAND_MAX + 1.0))*container_length - container_length/2);//create random number centred about 0 with width container_radius/3
         W_vec.push_back((rand()/(RAND_MAX + 1.0))*container_length - container_length/2);
-        W_vec.push_back(drop_height);
+        W_vec.push_back(drop_height + (rand()/(RAND_MAX + 1.0))*lambda_D/2);
         W_vec.push_back(0.0);
         W_vec.push_back(0.0);
         W_vec.push_back(0.0);
@@ -201,6 +201,7 @@ class Dust_Container{
 	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0}
     {
         q_D = OML_charge();
+        //Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
         create_dust_grains();
     } 
 
@@ -266,7 +267,7 @@ class Dust_Container{
             for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
                 std::vector<double> pos_0 (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
                 r_01_mag = v_abs(element_add(pos_1, element_mul(pos_0,-1)));
-                if (r_01_mag <= grain_R){
+                if (r_01_mag <= 2*grain_R){
                     Dust_grain_list.pop_back();
                     break;
                 }
@@ -359,6 +360,13 @@ class Dust_Container{
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
             v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);
+            /*
+            if( (i == (Dust_grain_list.size() - 1)) && (Dust_grain_list[i].W_vec[2] < z_se) && (Dust_grain_list.size() < dust_grain_max) ){
+                //""" if the last dust grain added has reached the lower sheathe electrode add another dust grain unless we have reached the dust grain number cap"""
+                Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
+                combs_list_produce();
+            }
+            */
         };
         calc_temperature();
         v_squared_sum = 0;
