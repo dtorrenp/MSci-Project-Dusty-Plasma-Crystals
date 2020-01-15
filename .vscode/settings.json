@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "C:\\Users\\daniel\\AppData\\Local\\Continuum\\anaconda3\\python.exe",
+    "python.pythonPath": "C:\\Users\\daniel\\Anaconda3\\python.exe",
     "files.associations": {
         "array": "cpp",
         "atomic": "cpp",

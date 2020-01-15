@@ -7,6 +7,7 @@ import time
 import pandas as pd
 import matplotlib.animation as animation
 import scipy.stats as stats
+from matplotlib.patches import Circle
 import time
 
 #%%
@@ -36,60 +37,46 @@ r_se_inv = container_radius - r_se
 top_container_graph_mul = 1.5
 hist_div_val = 4 #larger less bins, smaller more bins
 colour_list = ["red","green","blue","orange","black","brown"]
-#%%
-
-status = input("Compile or Run?")
-boundry = input("Periodic or Finite?")
-layer_plots = input("layers?")
-
-if status == "Compile":
-    #COMPILE
-    #UNI
-    #subprocess.call(["g++", "H:\year 4\computational\MSci-Project-Dusty-Plasma-Crystals\MSci_project.cpp"])
-    #LAPTOP
-    #os.environ["PROJECT_FILE"]
-   if boundry == "Periodic":
-      subprocess.call(["g++", "-o", "MSci_project_periodic_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project_periodic_HPC.cpp"])
-      """Import stuff to measure how long the code takes to run"""
-      start_time = time.time()
-      print("start_time =", time.ctime(time.time()))
-      subprocess.call("MSci_project_periodic_HPC.exe")
-      """prints time taken in minutes"""
-      print ("time taken: %s minutes" % ((time.time()-start_time)/60))
-   elif boundry == "Finite":
-      subprocess.call(["g++", "-o", "MSci_project_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project_HPC.cpp"])
-      """Import stuff to measure how long the code takes to run"""
-      start_time = time.time()
-      print("start_time =", time.ctime(time.time()))
-      subprocess.call("MSci_project_HPC.exe")
-      """prints time taken in minutes"""
-      print ("time taken: %s minutes" % ((time.time()-start_time)/60))
-   else:
-      print ("run again")
-
 
 #%%
 
-FILENAME = input("Data file name?")
+FILENAME = "HPC_Data/Dust_grain_max_20_wake_charge_multiplier_0.500000_container_radius_0.001011_Final_Termperature_3933.559427_frames_1001.csv"
 
 #%%
 data = pd.read_csv(FILENAME)
 dust_grain_max = int((len(data.columns))/4)
-last_time_val = data["Time_list_0"].iloc[-1]
-y_z_se = [z_se/lambda_D]*len(data["Time_list_0"])
-temp_ion = [T_i]*len(data["Time_list_0"])
 
-"""
-Animation of simulation is produced. Patches are moved on the axes corresponding to the movement of particles
-"""
+fig, ax = plt.subplots()
+ax.set(xlim=(-container_radius/lambda_D, container_radius/lambda_D), ylim=(-container_radius/lambda_D, container_radius/lambda_D))
 
-fig = plt.figure(1)
-ax = plt.axes(xlim=(container_radius, -container_radius), ylim=(container_radius,-container_radius))
-ax.axes.set_aspect('equal')
-movie = G.Gas(Animation,ax,frame_rate,balls,frame_limit,container_radius,brownian_mass,Temp,Diatomic)#(self,animate,ax,frame_rate,Balls,frame_limit,container_radius,Brownian_mass,temperature)
-anim = animation.FuncAnimation( fig,
-                                movie.next_frame,
-                                init_func = movie.init_figure, 
-                                frames = 1000, 
-                                interval = 1,
-                                blit = True)
+circle = Circle((0, 0), container_radius/lambda_D,facecolor = "none", edgecolor="black", linewidth=3, alpha=0.5)
+ax.add_patch(circle)
+dust_points = ax.plot([], [],"bo", mec = "black",ms=grain_R/lambda_D)
+
+#need vector with all the x points and all the y points
+def get_data(v):
+    x = []
+    y = []
+    for i in np.arange(dust_grain_max):
+        x.append(data["X_" + str(i)].iloc[v])
+        y.append(data["Y_" + str(i)].iloc[v])
+    return [x,y]
+
+def init():
+    """initialize animation"""
+    dust_points[0].set_data([], [])
+    return dust_points
+
+def animate(v):
+    """perform animation step"""
+    data_anim = get_data(v)
+    # update pieces of the animation
+    dust_points[0].set_data(data_anim[0],data_anim[1])
+    return dust_points
+
+ani = animation.FuncAnimation(fig, animate,interval=10, blit=True, init_func=init)
+
+plt.show()
+                                                                   
+
+

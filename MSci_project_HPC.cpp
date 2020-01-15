@@ -12,9 +12,14 @@
 #include <chrono>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 500;//dust grain max number
-const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
+const int dust_grain_max_input = 20;//dust grain max number
+//const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 const double time_limit = 1.0;
+const double dt_a = 1.0e-5;
+const double dt_c = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
+const double dt_b = 1.0e-3;
+const double dt_condition_b = 1e3;//temperature
+const double dt_condition_c = 1e2;
 
 //CONSTANTS TO FUCK ABOUT WITH
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
@@ -31,11 +36,6 @@ const double wake_charge_multiplier = 0.5;
 const double coulomb_limit = 5;
 const double a_0 = 1;//intial guess for halley's method
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
-const double dt_a = 1.0e-4;
-const double dt_c = 1.0e-3;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
-const double dt_b = 1.0e-2;
-const double dt_condition_b = 1e3;
-const double dt_condition_c = 1e4;
 
 //CONSTANTS DEPENDANT ON ACTUAL PHYSICS
 const double g_z = 9.81;//gravity
