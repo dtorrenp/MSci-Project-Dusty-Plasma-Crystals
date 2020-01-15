@@ -14,12 +14,13 @@
 //CRITICAL VALUES
 const int dust_grain_max_input = 20;//dust grain max number
 //const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-const double time_limit = 1.0;
 const double dt_a = 1.0e-5;
 const double dt_c = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
 const double dt_b = 1.0e-3;
 const double dt_condition_b = 1e3;//temperature
 const double dt_condition_c = 1e2;
+const double time_limit = 1.0;
+const double frame_req = 5;
 
 //CONSTANTS TO FUCK ABOUT WITH
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
@@ -36,6 +37,7 @@ const double wake_charge_multiplier = 0.5;
 const double coulomb_limit = 5;
 const double a_0 = 1;//intial guess for halley's method
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
+const double init_speed = 1e-5;
 
 //CONSTANTS DEPENDANT ON ACTUAL PHYSICS
 const double g_z = 9.81;//gravity
@@ -124,11 +126,11 @@ class Dust_grain{
         //when creating new dust grains gives them random x,y positions so the dust grains dont just stack on 0,0//
         //std::cout << container_dust_dist_creation << "," <<(-container_dust_dist_creation/2.0 + (rand()/(RAND_MAX + 1.0))*container_dust_dist_creation)/lambda_D << std::endl;
         W_vec.push_back(-container_radius /4.0 + (rand()/(RAND_MAX + 1.0))*container_radius/2);//create random number centred about 0 with width container_radius/3
-        W_vec.push_back(-container_radius /4.0 + (rand()/(RAND_MAX + 1.0))*container_radius /2);
+        W_vec.push_back(-container_radius /4.0 + (rand()/(RAND_MAX + 1.0))*container_radius/2);
         W_vec.push_back(drop_height + (rand()/(RAND_MAX + 1.0))*lambda_D/2);
-        W_vec.push_back(0.0);
-        W_vec.push_back(0.0);
-        W_vec.push_back(0.0);
+        W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
+        W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
+        W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
         x_history.push_back(W_vec[0]/lambda_D);
         y_history.push_back(W_vec[1]/lambda_D);
         z_history.push_back(W_vec[2]/lambda_D);
@@ -374,7 +376,7 @@ int main(){
 
     Dust_Container Dusty_plasma_crystal = Dust_Container(dust_grain_max_input);
 
-    while (Dusty_plasma_crystal.temperature >  dt_condition_b){
+    while ((Dusty_plasma_crystal.temperature >  dt_condition_b) || (Dusty_plasma_crystal.time_list.size() < frame_req)){
         Dusty_plasma_crystal.next_frame(dt_a);
     }
     while (Dusty_plasma_crystal.temperature >  dt_condition_c){
