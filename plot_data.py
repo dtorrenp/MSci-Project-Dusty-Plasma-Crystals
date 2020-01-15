@@ -35,9 +35,9 @@ hist_div_val = 4 #larger less bins, smaller more bins
 colour_list = ["red","green","blue","orange","black","brown"]
 #%%
 
-status = input("Compile or Run?")
-boundry = input("Periodic or Finite?")
-layer_plots = input("layers?")
+status = "Compile"#input("Compile or Run?")
+boundry = "Finite"#input("Periodic or Finite?")
+layer_plots = "no"#input("layers?")
 
 if status == "Compile":
     #COMPILE
@@ -130,6 +130,19 @@ if boundry == "Periodic":
    plt.xlim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
    plt.ylim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
    plt.savefig("Figures/Periodic_final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+
+   plt.figure()
+   plt.title("Motion")
+   for i in np.arange(dust_grain_max):
+      last_val_index = np.where(data["Time_list_" + str(i)].values == last_time_val)
+      plt.plot(data["X_" + str(i)],data["Y_" + str(i)])
+      plt.plot(data["X_" + str(i)][0], data["Y_" + str(i)][0],"+" ,color='blue')
+      plt.plot(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
+   plt.xlabel("x/lambda_D")
+   plt.ylabel("y/lambda_D")
+   plt.grid()
+   plt.xlim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
+   plt.ylim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
 
    plt.figure()
    plt.title("Temperature")

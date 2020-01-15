@@ -14,11 +14,11 @@
 //CRITICAL VALUES
 const int dust_grain_max_input = 20;//dust grain max number
 //const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-const double dt_a = 1.0e-4;
+const double dt_a = 1.0e-5;
 const double dt_c = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
-const double dt_b = 1.0e-4;
+const double dt_b = 1.0e-3;
 const double dt_condition_b = 1e3;//temperature
-const double dt_condition_c = 1e1;
+const double dt_condition_c = 1e2;
 const double time_limit = 1.0;
 const double frame_req = 5;
 
@@ -34,7 +34,7 @@ const double phi_wall_z = -100.0;//volts
 const double phi_wall_r = -10.0;//volts
 const double wake_potential_below = 2*grain_R;
 const double wake_charge_multiplier = 0.5;
-const double coulomb_limit = 5;
+const double coulomb_limit = 50;
 const double a_0 = 1;//intial guess for halley's method
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
 const double init_speed = 1e-5;
@@ -59,7 +59,7 @@ const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5)
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5); //ion Debye length
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5); //total Debye length
 
-const double drop_height = 9.9*lambda_D; //dust drop height
+const double drop_height = 9.8*lambda_D; //dust drop height
 const double container_length = 10.0*lambda_D; //container radius
 const double z_se = 10.0*lambda_D;//sheath edge height
 
@@ -123,7 +123,7 @@ class Dust_grain{
     double v_i_z;
     double charge;
 
-    Dust_grain(double q, double time_init):charge(q),a_c{0,0,0},time_list_dust{time_init},v_i_z(0),
+    Dust_grain(double q, double time_init):charge(q),a_c{0,0,0},time_list_dust{time_init},v_i_z(0),wake_charge(abs(q)*wake_charge_multiplier),
     generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m_D)))
     {
         prod_W_vec();        
@@ -139,6 +139,9 @@ class Dust_grain{
         W_vec.push_back((rand()/(RAND_MAX + 1.0))*container_length - container_length/2);//create random number centred about 0 with width container_radius/3
         W_vec.push_back((rand()/(RAND_MAX + 1.0))*container_length - container_length/2);
         W_vec.push_back(drop_height + (rand()/(RAND_MAX + 1.0))*lambda_D/2);
+        //W_vec.push_back(0);
+        //W_vec.push_back(0);
+        //W_vec.push_back(0);
         W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
         W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
         W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
@@ -155,25 +158,32 @@ class Dust_grain{
         //x,y components
         f.push_back( - (alpha_n*W_vec_f[3])/m_D + a_c[0] + (therm_coeff*dist(generator))/m_D + (therm_coeff_i*dist(generator))/m_D);//drag, sheathe and coloumb force and ion drag force
         f.push_back( - (alpha_n*W_vec_f[4])/m_D + a_c[1] + (therm_coeff*dist(generator))/m_D + (therm_coeff_i*dist(generator))/m_D);
+
+        //std::cout << - (alpha_n*W_vec_f[4])/m_D << "," << a_c[1] << "," << (therm_coeff*dist(generator))/m_D << "," << (therm_coeff_i*dist(generator))/m_D << std::endl;
         //z component
         if (W_vec_f[2] > z_se){
             f.push_back(- g_z - (alpha_n*W_vec_f[5])/m_D + a_c[2] + (therm_coeff*dist(generator))/m_D);//drag, gravity, coloumb force and ion drag force
         }
         else{
             v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec_f[2] - z_se),2))/m_i -2.0*g_z*(W_vec_f[2] - z_se)),0.5);
-             f.push_back((charge/m_D)*k_z_restore*(W_vec_f[2] - z_se) - g_z + a_c[2] - (alpha_n*W_vec_f[5])/m_D - (alpha_i*pow(v_i_z - W_vec_f[5],2))/m_D + (therm_coeff*dist(generator))/m_D + (therm_coeff_i*dist(generator))/m_D);//drag, sheathe, gravity, coloumb force and ion drag force;
+            f.push_back((charge/m_D)*k_z_restore*(W_vec_f[2] - z_se) - g_z + a_c[2] - (alpha_n*W_vec_f[5])/m_D - (alpha_i*pow(v_i_z - W_vec_f[5],2))/m_D + (therm_coeff*dist(generator))/m_D + (therm_coeff_i*dist(generator))/m_D);//drag, sheathe, gravity, coloumb force and ion drag force;
         };
+
+        //print_vector(f);
         return f;
     }
 
     void step(double dt){
         //std::cout << "step" << std::endl;
+        //std::cout << dt << std::endl;
         //std::cout << W_vec[0] << "," << W_vec[1] << "," << W_vec[2] << std::endl;
         std::vector<double> k1 = element_mul(f_der(W_vec),dt);
         std::vector<double> k2 = element_mul(f_der(element_add(W_vec,element_mul(k1,1/2))),dt);
         std::vector<double> k3 = element_mul(f_der(element_add(W_vec,element_mul(k2,1/2))),dt);
         std::vector<double> k4 = element_mul(f_der(element_add(W_vec,k3)),dt);
         std::vector<double> W_vec_temp = element_add(W_vec,element_mul(element_add(element_add(element_add(k1,element_mul(k2,2.0)),element_mul(k3,2.0)),k4),1.0/6.0));
+        //std::cout << "heeey" << std::endl;
+        //print_vector(W_vec_temp);
         for(int i = 0; i < 2; i++){
             if(std::abs(W_vec_temp[i]) > container_length/2){
                 if(W_vec_temp[i]> 0){
@@ -309,6 +319,8 @@ class Dust_Container{
             std::vector<double> pos_0 (combs_list[i].first.W_vec.begin(),combs_list[i].first.W_vec.begin() + 3);
             std::vector<double> pos_1 (combs_list[i].second.W_vec.begin(),combs_list[i].second.W_vec.begin() + 3);
             
+            //std::cout << "heyy" << std::endl;
+
             r_01 =  element_add(pos_1, element_mul(pos_0,-1));
             
             if(std::abs(r_01[0]) > container_length/2){
@@ -332,18 +344,23 @@ class Dust_Container{
             }
 
             r_01_mag = v_abs(r_01);
+            //std::cout << r_01_mag/lambda_D << std::endl;
+
             if (r_01_mag > coulomb_limit*lambda_D){
                 continue;//NOT SURE IF THIS IS NECESSARY
             }
 
             force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
+            //print_vector(force_c);
 
             if(pos_1[2] < z_se){
                 r_01_pos[0] = r_01[0];
                 r_01_pos[1] = r_01[1];
                 r_01_pos[2] = r_01[2] - wake_potential_below;
                 r_01_pos_mag = v_abs(r_01_pos);
+                //std::cout << r_01_pos_mag/lambda_D << std::endl;
                 wake_charge = std::abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].second.wake_charge;
+                //std::cout << wake_charge << std::endl;
                 force_c_pos_01 = element_mul(r_01_pos,-((combs_list[i].first.charge*wake_charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_pos_mag/lambda_D)) * (1/(pow(r_01_pos_mag,3)) + 1/(lambda_D*(pow(r_01_pos_mag,2)))));
             };
 
@@ -353,9 +370,14 @@ class Dust_Container{
                 r_10_pos[2] = -r_01[2] - wake_potential_below;
                 r_10_pos_mag = v_abs(r_10_pos);
                 wake_charge = std::abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].first.wake_charge;
+                //std::cout << r_10_pos_mag/lambda_D << std::endl;
+                //std::cout << wake_charge << std::endl;
                 force_c_pos_10 = element_mul(r_10_pos,-((combs_list[i].second.charge*wake_charge)/(4*M_PI*epsilon_0))*exp((grain_R/lambda_D) - (r_10_pos_mag/lambda_D)) * (1/(pow(r_10_pos_mag,3)) + 1/(lambda_D*(pow(r_10_pos_mag,2)))));
-
             };
+            //print_vector(element_mul(force_c,1/m_D));
+            //print_vector(element_mul(force_c_pos_01,1/m_D));
+            //print_vector(element_mul(force_c,1/-m_D)); 
+            //print_vector(element_mul(force_c_pos_10,1/m_D));
 
             combs_list[i].first.a_c = element_add(combs_list[i].first.a_c,element_add(element_mul(force_c,1/m_D), element_mul(force_c_pos_01,1/m_D)));
             combs_list[i].second.a_c = element_add(combs_list[i].second.a_c,element_add(element_mul(force_c,1/-m_D) , element_mul(force_c_pos_10,1/m_D)));  
@@ -364,6 +386,7 @@ class Dust_Container{
 
     void next_frame(double dt){
     //The big daddy of the code, this functions loops over advancing the simulation by a time step dt
+        //std::cout << "frame" << std::endl;
         inter_particle_ca();
 		time_list.push_back(time_list.back() + dt);
 
@@ -375,7 +398,7 @@ class Dust_Container{
             Dust_grain_list[i].x_history.push_back(Dust_grain_list[i].W_vec[0]/lambda_D);
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
-            v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);
+            v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
             /*
             if( (i == (Dust_grain_list.size() - 1)) && (Dust_grain_list[i].W_vec[2] < z_se) && (Dust_grain_list.size() < dust_grain_max) ){
                 //""" if the last dust grain added has reached the lower sheathe electrode add another dust grain unless we have reached the dust grain number cap"""

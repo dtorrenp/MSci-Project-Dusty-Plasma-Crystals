@@ -185,7 +185,7 @@ class Dust_Container{
     double temperature;
     std::vector<double> temperature_history;
 
-	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0}
+	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0},v_squared_sum{0}
     {
             q_D = OML_charge();
             //Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
@@ -249,18 +249,23 @@ class Dust_Container{
         double r_01_mag;
         while(Dust_grain_list.size() < dust_grain_max){
             Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
-            std::vector<double> pos_1 (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);//COULD I USE LESS MEMORY?
-    
+            std::vector<double> pos_1 (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);
+
             for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
                 std::vector<double> pos_0 (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
                 r_01_mag = v_abs(element_add(pos_1, element_mul(pos_0,-1)));
-                if (r_01_mag <= 2*grain_R){//NEEDS TO BE DIAMETER SO THEY CANT BE IN EACH OTHER
+                if (r_01_mag <= 2*grain_R){
                     Dust_grain_list.pop_back();
                     break;
                 }
             }
             std::cout << Dust_grain_list.size() << std::endl;
         } 
+        for(int i = 0; i <  Dust_grain_list.size(); i++){
+            v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
+        }
+        calc_temperature();
+        v_squared_sum = 0;
         combs_list_produce();
     }
 
