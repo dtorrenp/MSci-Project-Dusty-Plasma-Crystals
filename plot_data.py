@@ -35,8 +35,8 @@ hist_div_val = 4 #larger less bins, smaller more bins
 colour_list = ["red","green","blue","orange","black","brown"]
 #%%
 
-status = "Compile"#input("Compile or Run?")
-boundry = "Finite"#input("Periodic or Finite?")
+status = "Run"#input("Compile or Run?")
+boundry = "Periodic"#input("Periodic or Finite?")
 layer_plots = "no"#input("layers?")
 
 if status == "Compile":
@@ -67,7 +67,7 @@ if status == "Compile":
 
 #%%
 
-FILENAME = input("Data file name?")
+FILENAME = "HPC_Data/Dust_grain_max_500_wake_charge_multiplier_0.500000_container_length_0.000404_Final_Termperature_nan_frames_12323.csv"#input("Data file name?")
 
 #%%
 data = pd.read_csv(FILENAME)

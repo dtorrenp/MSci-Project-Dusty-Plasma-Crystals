@@ -461,7 +461,7 @@ int main(){
 
     std::cout << "Simulation finished" << std::endl;
 
-    std::string filename = "HPC_Data/Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    std::string filename = "HPC_Data/Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
     filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename += "_container_length_" + std::to_string(container_length);
     filename += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);

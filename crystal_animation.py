@@ -7,7 +7,7 @@ import time
 import pandas as pd
 import matplotlib.animation as animation
 import scipy.stats as stats
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle,Rectangle
 import time
 
 #%%
@@ -31,27 +31,36 @@ lambda_D = (1/(1/(lambda_de**2) + 1/(lambda_di**2)))**0.5#get lambda_D
 container_height = 11*lambda_D#drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 container_radius = 25*lambda_D#set radius of contianer ie wall radius
 container_length = 10*lambda_D
-z_se = 10*lambda_D#distance from bottom of container to the sheath edge
-r_se = 25*lambda_D#distance from wall to the sheathe edge
-r_se_inv = container_radius - r_se
-top_container_graph_mul = 1.5
-hist_div_val = 4 #larger less bins, smaller more bins
-colour_list = ["red","green","blue","orange","black","brown"]
 
 #%%
 
-FILENAME = "HPC_Data/Dust_grain_max_20_wake_charge_multiplier_0.500000_container_radius_0.001011_Final_Termperature_3933.559427_frames_1001.csv"
+status = "Run"#input("Compile or Run?")
+boundry = "Periodic"#input("Periodic or Finite?")
+layer_plots = "no"#input("layers?")
+
+FILENAME = "HPC_Data/Dust_grain_max_500_wake_charge_multiplier_0.500000_container_length_0.000404_Final_Termperature_nan_frames_12323.csv"#input("Data file name?")
 
 #%%
 data = pd.read_csv(FILENAME)
 dust_grain_max = int((len(data.columns))/4)
+frames = len(data["Time_list_0"])
+speed_mul = 100
+size_mul = 1.2
 
 fig, ax = plt.subplots()
-ax.set(xlim=(-container_radius/lambda_D, container_radius/lambda_D), ylim=(-container_radius/lambda_D, container_radius/lambda_D))
-
-circle = Circle((0, 0), container_radius/lambda_D,facecolor = "none", edgecolor="black", linewidth=3, alpha=0.5)
-ax.add_patch(circle)
-dust_points = ax.plot([], [],"bo", mec = "black",ms=grain_R/lambda_D)
+plt.xlabel("x/lambda_D")
+plt.ylabel("y/lambda_D")
+dust_points = ax.plot([], [],"ro", ms=grain_R/lambda_D)
+if boundry == "Periodic":
+    ax.set(xlim=(-container_length/(2*lambda_D)*size_mul, container_length/(2*lambda_D)*size_mul), ylim=(-container_length/(2*lambda_D)*size_mul, container_length/(2*lambda_D)*size_mul))
+    rect = Rectangle((-container_length/(2*lambda_D), -container_length/(2*lambda_D)),width =  container_length/lambda_D, height = container_length/lambda_D, facecolor = "none", edgecolor="black", linewidth=1)
+    ax.add_patch(rect)
+    text = plt.text(-container_length/(2*lambda_D)*size_mul + 0.2, container_length/(2*lambda_D)*size_mul - 0.5,"")
+else:
+    ax.set(xlim=(-container_radius/lambda_D, container_radius/lambda_D), ylim=(-container_radius/lambda_D, container_radius/lambda_D))
+    circle = Circle((0, 0), container_radius/lambda_D,facecolor = "none", edgecolor="black", linewidth=1)
+    ax.add_patch(circle)
+    text = plt.text(-container_radius/lambda_D + 0.5, container_radius/lambda_D - 2.5,"")
 
 #need vector with all the x points and all the y points
 def get_data(v):
@@ -60,21 +69,26 @@ def get_data(v):
     for i in np.arange(dust_grain_max):
         x.append(data["X_" + str(i)].iloc[v])
         y.append(data["Y_" + str(i)].iloc[v])
-    return [x,y]
+    time = data["Time_list_" + str(0)].iloc[v]
+    return [x,y,time]
 
 def init():
     """initialize animation"""
     dust_points[0].set_data([], [])
-    return dust_points
+    text.set_text("Time = " + str(0) + "s")
+    return [dust_points[0],text]
 
-def animate(v):
+def animate(i):
     """perform animation step"""
-    data_anim = get_data(v)
+    data_anim = get_data(speed_mul*i)
     # update pieces of the animation
     dust_points[0].set_data(data_anim[0],data_anim[1])
-    return dust_points
+    text.set_text("Time = " + str(round(data_anim[2],5)) + "s")#updat value of the frame number
+    #print(dust_points)
+    #print(text)
+    return [dust_points[0],text]
 
-ani = animation.FuncAnimation(fig, animate,interval=10, blit=True, init_func=init)
+ani = animation.FuncAnimation(fig, animate,interval=10, blit=True, init_func=init, frames = round(frames/speed_mul))
 
 plt.show()
                                                                    
