@@ -5,6 +5,8 @@ from csv import reader
 import subprocess
 import time
 import pandas as pd
+import matplotlib.animation as animation
+from matplotlib.patches import Circle,Rectangle
 
 #%%
 #DEFINE PLASMA DISCHARGE CONDITIONS
@@ -36,38 +38,51 @@ colour_list = ["red","green","blue","orange","black","brown"]
 #%%
 
 status = "Run"#input("Compile or Run?")
-boundry = "Periodic"#input("Periodic or Finite?")
+load = "no"
+boundry = "Finite"#input("Periodic or Finite?")
 layer_plots = "no"#input("layers?")
+anim = "no"
 
 if status == "Compile":
-    #COMPILE
-    #UNI
-    #subprocess.call(["g++", "H:\year 4\computational\MSci-Project-Dusty-Plasma-Crystals\MSci_project.cpp"])
-    #LAPTOP
-    #os.environ["PROJECT_FILE"]
    if boundry == "Periodic":
-      subprocess.call(["g++", "-o", "MSci_project_periodic_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project_periodic_HPC.cpp"])
-      """Import stuff to measure how long the code takes to run"""
-      start_time = time.time()
-      print("start_time =", time.ctime(time.time()))
-      subprocess.call("MSci_project_periodic_HPC.exe")
-      """prints time taken in minutes"""
-      print ("time taken: %s minutes" % ((time.time()-start_time)/60))
+      if load == "yes":
+         subprocess.call(["g++", "-o", "Load_MSci_project_periodic_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/Load_MSci_project_periodic_HPC.cpp"])
+         """Import stuff to measure how long the code takes to run"""
+         start_time = time.time()
+         print("start_time =", time.ctime(time.time()))
+         subprocess.call("Load_MSci_project_periodic_HPC.exe")
+         """prints time taken in minutes"""
+         print ("time taken: %s minutes" % ((time.time()-start_time)/60)) 
+      else:   
+         subprocess.call(["g++", "-o", "MSci_project_periodic_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project_periodic_HPC.cpp"])
+         """Import stuff to measure how long the code takes to run"""
+         start_time = time.time()
+         print("start_time =", time.ctime(time.time()))
+         subprocess.call("MSci_project_periodic_HPC.exe")
+         """prints time taken in minutes"""
+         print ("time taken: %s minutes" % ((time.time()-start_time)/60))
    elif boundry == "Finite":
-      subprocess.call(["g++", "-o", "MSci_project_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project_HPC.cpp"])
-      """Import stuff to measure how long the code takes to run"""
-      start_time = time.time()
-      print("start_time =", time.ctime(time.time()))
-      subprocess.call("MSci_project_HPC.exe")
-      """prints time taken in minutes"""
-      print ("time taken: %s minutes" % ((time.time()-start_time)/60))
+      if load == "yes":
+         subprocess.call(["g++", "-o", "Load_MSci_project_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/Load_MSci_project_HPC.cpp"])
+         """Import stuff to measure how long the code takes to run"""
+         start_time = time.time()
+         print("start_time =", time.ctime(time.time()))
+         subprocess.call("Load_MSci_project_HPC.exe")
+         """prints time taken in minutes"""
+         print ("time taken: %s minutes" % ((time.time()-start_time)/60))
+      else:   
+         subprocess.call(["g++", "-o", "MSci_project_HPC", "C:/Users/daniel/Documents/UniWork/4th_Year/MSci-Project-Dusty-Plasma-Crystals/MSci_project_HPC.cpp"])
+         """Import stuff to measure how long the code takes to run"""
+         start_time = time.time()
+         print("start_time =", time.ctime(time.time()))
+         subprocess.call("MSci_project_HPC.exe")
+         """prints time taken in minutes"""
+         print ("time taken: %s minutes" % ((time.time()-start_time)/60))
    else:
       print ("run again")
 
-
 #%%
-
-FILENAME = "HPC_Data/Dust_grain_max_500_wake_charge_multiplier_0.500000_container_length_0.000404_Final_Termperature_nan_frames_12323.csv"#input("Data file name?")
+FILENAME = "HPC_Data/Dust_grain_max_50_wake_charge_multiplier_0.500000_container_radius_0.001011_Final_Termperature_99.871535_frames_45052.csv"#input("Data file name?")
 
 #%%
 data = pd.read_csv(FILENAME)
@@ -316,6 +331,54 @@ if layer_plots == "yes":
       ax.set_xlabel('X position')
       ax.set_ylabel('Y position')
       ax.set_zlabel('Z position')
+
+if anim == "yes":
+   frames = len(data["Time_list_0"])
+   speed_mul = 10
+   size_mul = 1.2
+
+   fig, ax = plt.subplots()
+   plt.xlabel("x/lambda_D")
+   plt.ylabel("y/lambda_D")
+   dust_points = ax.plot([], [],"o")
+   if boundry == "Periodic":
+      ax.set(xlim=(-container_length/(2*lambda_D)*size_mul, container_length/(2*lambda_D)*size_mul), ylim=(-container_length/(2*lambda_D)*size_mul, container_length/(2*lambda_D)*size_mul))
+      rect = Rectangle((-container_length/(2*lambda_D), -container_length/(2*lambda_D)),width =  container_length/lambda_D, height = container_length/lambda_D, facecolor = "none", edgecolor="black", linewidth=1)
+      ax.add_patch(rect)
+      text = plt.text(-container_length/(2*lambda_D)*size_mul + 0.2, container_length/(2*lambda_D)*size_mul - 0.5,"")
+   else:
+      ax.set(xlim=(-container_radius/lambda_D, container_radius/lambda_D), ylim=(-container_radius/lambda_D, container_radius/lambda_D))
+      circle = Circle((0, 0), container_radius/lambda_D,facecolor = "none", edgecolor="black", linewidth=1)
+      ax.add_patch(circle)
+      text = plt.text(-container_radius/lambda_D + 0.5, container_radius/lambda_D - 2.5,"")
+
+   #need vector with all the x points and all the y points
+   def get_data(v):
+      x = []
+      y = []
+      for i in np.arange(dust_grain_max):
+         x.append(data["X_" + str(i)].iloc[v])
+         y.append(data["Y_" + str(i)].iloc[v])
+      time = data["Time_list_" + str(0)].iloc[v]
+      return [x,y,time]
+
+   def init():
+      """initialize animation"""
+      dust_points[0].set_data([], [])
+      text.set_text("Time = " + str(0) + "s")
+      return [dust_points[0],text]
+
+   def animate(i):
+      """perform animation step"""
+      data_anim = get_data(speed_mul*i)
+      # update pieces of the animation
+      dust_points[0].set_data(data_anim[0],data_anim[1])
+      text.set_text("Time = " + str(round(data_anim[2],5)) + "s")#updat value of the frame number
+      #print(dust_points)
+      #print(text)
+      return [dust_points[0],text]
+
+   ani = animation.FuncAnimation(fig, animate,interval=10, blit=True, init_func=init, frames = round(frames/speed_mul))
 
 plt.show()
 

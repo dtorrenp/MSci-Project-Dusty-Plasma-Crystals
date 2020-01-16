@@ -12,7 +12,7 @@
 #include <chrono>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 20;//dust grain max number
+const int dust_grain_max_input = 50;//dust grain max number
 //const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 const double dt_a = 1.0e-5;
 const double dt_c = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
@@ -31,7 +31,7 @@ const double Z_n = 18;//atomic number for argon neutral gas
 const double grain_R = 7*1e-6;
 const double dust_grain_density = 1.49*1e3;
 const double phi_wall_z = -100.0;//volts
-const double phi_wall_r = -10.0;//volts
+const double phi_wall_r = -100.0;//volts
 const double wake_potential_below = 2*grain_R;
 const double wake_charge_multiplier = 0.5;
 const double coulomb_limit = 5;
@@ -393,11 +393,18 @@ int main(){
 
     std::cout << "Simulation finished" << std::endl;
 
+    /////////////////////
+
     std::string filename = "HPC_Data/Dust_grain_max_" + std::to_string(dust_grain_max_input);
     filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
-    filename += "_container_radius_" + std::to_string(container_radius);
+    filename += "_container_length_" + std::to_string(container_radius);
     filename += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
     filename += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size());
+    filename += "_phi_wall_z_" + std::to_string(phi_wall_z);
+    filename += "_phi_wall_r_" + std::to_string(phi_wall_r);
+    filename += "_wake_potential_below_" + std::to_string(wake_potential_below);
+    filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
+    filename += "_coulomb_limit_" + std::to_string(coulomb_limit);
     filename += ".csv";
 
     std::vector<std::pair<std::string,std::vector<double>>> vals;
@@ -409,12 +416,57 @@ int main(){
         vals.push_back(make_pair("Time_list_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].time_list_dust));
         speed_list.push_back(Dusty_plasma_crystal.Dust_grain_list[i].calc_speed());
     };
+
     vals.push_back(make_pair("Temperature_list", Dusty_plasma_crystal.temperature_history));
     vals.push_back(make_pair("Speed_list", speed_list));
 
     //vals.push_back(make_pair("Time_list", Dusty_plasma_crystal.time_list));
     write_csv(filename, vals);
     std::cout << "FILENAME:" << filename << std::endl;
+
+    //////////////
+
+    std::string filename_end = "HPC_Data/Final_Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    filename_end += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
+    filename_end += "_container_radius_" + std::to_string(container_radius);
+    filename_end += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
+    filename_end += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size());
+    filename_end += "_phi_wall_z_" + std::to_string(phi_wall_z);
+    filename_end += "_phi_wall_r_" + std::to_string(phi_wall_r);
+    filename_end += "_wake_potential_below_" + std::to_string(wake_potential_below);
+    filename_end += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
+    filename_end += "_coulomb_limit_" + std::to_string(coulomb_limit);
+    filename_end += ".csv";
+
+    std::vector<std::pair<std::string, std::vector<double> >> vals_end;
+    std::vector<double> final_x;
+    std::vector<double> final_y;
+    std::vector<double> final_z;
+    std::vector<double> final_vx;
+    std::vector<double> final_vy;
+    std::vector<double> final_vz;
+
+    for(int i = 0 ; i < Dusty_plasma_crystal.Dust_grain_list.size(); i++){
+        final_x.push_back(Dusty_plasma_crystal.Dust_grain_list[i].W_vec[0]);
+        final_y.push_back(Dusty_plasma_crystal.Dust_grain_list[i].W_vec[1]);
+        final_z.push_back(Dusty_plasma_crystal.Dust_grain_list[i].W_vec[2]);
+        final_vx.push_back(Dusty_plasma_crystal.Dust_grain_list[i].W_vec[3]);
+        final_vy.push_back(Dusty_plasma_crystal.Dust_grain_list[i].W_vec[4]);
+        final_vz.push_back(Dusty_plasma_crystal.Dust_grain_list[i].W_vec[5]);
+    };
+
+    vals_end.push_back(make_pair("X",final_x));
+    vals_end.push_back(make_pair("Y",final_y));
+    vals_end.push_back(make_pair("Z",final_z));
+    vals_end.push_back(make_pair("V_X",final_vx));
+    vals_end.push_back(make_pair("V_Y",final_vy));
+    vals_end.push_back(make_pair("V_Z",final_vz));
+
+    write_csv(filename_end, vals_end);
+    std::cout << "FILENAME_END:" << filename_end << std::endl;
+
+    /////////////
+    
     std::cout << "done" << std::endl;
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();

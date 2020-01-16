@@ -12,15 +12,10 @@
 #include <chrono>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 50;//dust grain max number
-//const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-const double dt_a = 1.0e-5;
-const double dt_c = 1.0e-4;//time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
-const double dt_b = 1.0e-3;
-const double dt_condition_b = 1e3;//temperature
-const double dt_condition_c = 1e2;
-const double time_limit = 1.0;
-const double frame_req = 5;
+const double q_D_input = -2;
+const double frames = 1000;
+const double dt_input = 1e-4;
+const std::string load_file = "HPC_Data/blah"; 
 
 //CONSTANTS TO FUCK ABOUT WITH
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
@@ -38,35 +33,32 @@ const double a_0 = 1;//intial guess for halley's method
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
 const double init_speed = 1e-5;
 
-//PHYSICAL CONSTANTS
-const double g_z = 9.81; //gravitational field strength
-const double e_charge = -1.6*1e-19; //electron charge
-const double i_charge = 1.6*1e-19; //ion charge
-const double m_i = 1.67*1e-27; //electron mass
-const double m_e = 9.11*1e-31; //ion mass
-const double m_n = Z_n*m_i; //neutrals mass
-const double m_D = ((4.0/3.0)*M_PI*pow(grain_R,3))*dust_grain_density; //mass of spherical dust grain
+//CONSTANTS DEPENDANT ON ACTUAL PHYSICS
+const double g_z = 9.81;//gravity
+const double e_charge = -1.6*1e-19;
+const double i_charge = 1.6*1e-19;
+const double m_i = 1.67*1e-27;
+const double m_e = 9.11*1e-31;
+const double m_n = Z_n*m_i;
+const double m_D = ((4.0/3.0)*M_PI*pow(grain_R,3))*dust_grain_density;//m_D of the dust grain given by volume*density where the density is space dust NEED TO GET BETTER VALUE
 const double epsilon_0 = 8.85*1e-12;
-const double k_b = 1.38*1e-23; //Boltzmann constant
-const double mu = (m_i/m_e); //mass normalisation
-
-const double T_e = 2.0*(1.6*1e-19)/k_b; //electron temperature
-const double T_i = 0.03*(1.6*1e-19)/k_b; //ion temperature
-const double beta = T_i/T_e; //temperature normalisation
-
-const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5); //electron Debye length
-const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5); //ion Debye length
-const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5); //total Debye length
-
-const double drop_height = 9.8*lambda_D; //dust drop height
+const double k_b = 1.38*1e-23;
+const double mu = (m_i/m_e);//normalization used for convienience
+const double T_e = 2.0*(1.6*1e-19)/k_b;
+const double T_i = 0.03*(1.6*1e-19)/k_b;
+const double beta = T_i/T_e;
+const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
+const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
+const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
+const double drop_height = 10.1*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_length = 10.0*lambda_D; //container radius
-const double z_se = 10.0*lambda_D;//sheath edge height
-
+const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
+const double r_se = 25.0*lambda_D;//distance from wall to the sheathe edge
 const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
 const double v_B = pow((k_b*T_e/m_i),0.5);
 const double v_Tn = pow((k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
-const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn; //neutral drag coefficient
-const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0; //ion drag coefficient
+const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn;//maybe 8/3
+const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0;
 const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
 const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i);
 //make functions for element-wise multiplication and addition of vectors
@@ -94,20 +86,9 @@ double v_abs(const std::vector<double>& a){
     return pow(c,0.5);
 }
 
-void print_vector(const std::vector<double>& a){
-    std::cout << "[";
-    for(int i=0; i<a.size(); i++){
-        std::cout << a[i];
-        if(i != a.size() - 1){
-                std::cout << ","; // No comma at end of line
-            } 
-    }
-    std::cout << "]"<< std::endl;
-}
-
 class Dust_grain{
     //dust grain class handles all properties relating to the dust grain it
-
+    
     private:
     std::default_random_engine generator;
     std::normal_distribution<double> dist;
@@ -124,26 +105,15 @@ class Dust_grain{
 
     Dust_grain(double q, double time_init):charge(q),a_c{0,0,0},time_list_dust{time_init},v_i_z(0),wake_charge(abs(q)*wake_charge_multiplier),
     generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m_D)))
-    {
-        prod_W_vec();        
+    { 
     }
 
     double calc_speed(){
-        std::vector<double> vel (W_vec.end() - 3,W_vec.end());       
+        std::vector<double> vel (W_vec.end() - 3,W_vec.end());        
         return v_abs(vel);
     }
-    
-    void prod_W_vec(){
-        //when creating new dust grains gives them random x,y positions so the dust grains dont just stack on 0,0//
-        W_vec.push_back((rand()/(RAND_MAX + 1.0))*container_length - container_length/2);//create random number centred about 0 with width container_radius/3
-        W_vec.push_back((rand()/(RAND_MAX + 1.0))*container_length - container_length/2);
-        W_vec.push_back(drop_height + (rand()/(RAND_MAX + 1.0))*lambda_D/2);
-        //W_vec.push_back(0);
-        //W_vec.push_back(0);
-        //W_vec.push_back(0);
-        W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
-        W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
-        W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
+
+    void history_W_vec(){
         x_history.push_back(W_vec[0]/lambda_D);
         y_history.push_back(W_vec[1]/lambda_D);
         z_history.push_back(W_vec[2]/lambda_D);
@@ -203,7 +173,7 @@ class Dust_grain{
     }
 };
 
-class Dust_Container{
+class Load_Dust_Container{
 
     private:
     double q_D;
@@ -217,51 +187,9 @@ class Dust_Container{
     double temperature;
     std::vector<double> temperature_history;
 
-	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0},v_squared_sum{0}
+	Load_Dust_Container(int Dust_grain_max, double Q_D):dust_grain_max(Dust_grain_max),q_D(Q_D),time_list{0},v_squared_sum{0}
     {
-        q_D = OML_charge();
-        //Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
-        create_dust_grains();
-
     } 
-
-    //Find the dust grain sufrace potential using OML model
-    double OML_charge(){
-        //basically we have an equation that has the normalized surface potetnail in it and we rootfind for it, using the lambert W function form though tbh i agree with coppins this isnt actually necesary
-        double k = ((pow((mu*beta),0.5))/Z)*exp(beta/Z);
-        double W_0_H = find_W_H(a_0,k,root);
-        double n_double = W_0_H - (beta/Z);
-        double phi_grain =  (k_b*T_e*n_double)/(e_charge);// unormalize it
-        return 4.0*M_PI*epsilon_0*grain_R*phi_grain;
-    }
-    double f_x(double x_n, double z){
-        return x_n*exp(x_n) - z;
-    }
-    double f_x_first_derv(double x_n){
-        return exp(x_n)*(1 + x_n);
-    }
-    double f_x_second_derv(double x_n){
-        return exp(x_n)*(2 + x_n);
-    }
-    double calc_x_plus(double x_n,double z){
-        double f_x_0 = f_x(x_n,z);
-        double f_x_1 = f_x_first_derv(x_n);
-        double f_x_2 = f_x_second_derv(x_n);
-        double x_plus = x_n - ((2*f_x_0*f_x_1)/(2.0*(pow(f_x_1,2))-f_x_0*f_x_2));
-        return x_plus;
-    }
-    double find_W_H(double a_0,double z,double root_prec){
-        //root finding method using "halley's method" like newtons method but third order
-        double a_n = a_0;
-        double a_plus = calc_x_plus(a_0,z);//do i need to give type if product of a thing?
-    
-        while(std::abs(a_plus - a_n) > root_prec){
-            a_n = a_plus;
-            a_plus = calc_x_plus(a_n,z);
-        }
-        double W_0 = (a_n + a_plus)/2;
-        return W_0;
-    }
 
     void calc_temperature(){
         temperature = m_D*(v_squared_sum/Dust_grain_list.size())/(3*k_b);
@@ -277,25 +205,13 @@ class Dust_Container{
             }
         }
     }
-    
-    void create_dust_grains(){
-        double r_01_mag;
-        while(Dust_grain_list.size() < dust_grain_max){
-            Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
-            std::vector<double> pos_1 (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);
 
-            for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
-                std::vector<double> pos_0 (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
-                r_01_mag = v_abs(element_add(pos_1, element_mul(pos_0,-1)));
-                if (r_01_mag <= 2*grain_R){
-                    Dust_grain_list.pop_back();
-                    break;
-                }
-            }
-            std::cout << Dust_grain_list.size() << std::endl;
-        } 
-        for(int i = 0; i <  Dust_grain_list.size(); i++){
-            v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
+    void load_dust_grains(std::vector<std::pair<std::string, std::vector<double>>> dust_grain_data){
+        for(int i = 0; i <  dust_grain_max; i++){
+            Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
+            std::vector<double> W_vec_data{dust_grain_data[0].second[i], dust_grain_data[1].second[i],dust_grain_data[2].second[i],dust_grain_data[3].second[i],dust_grain_data[4].second[i],dust_grain_data[5].second[i]};
+            Dust_grain_list[i].W_vec = W_vec_data;
+            Dust_grain_list[i].history_W_vec();
         }
         calc_temperature();
         v_squared_sum = 0;
@@ -385,24 +301,86 @@ class Dust_Container{
 
     void next_frame(double dt){
     //The big daddy of the code, this functions loops over advancing the simulation by a time step dt
-        //std::cout << "frame" << std::endl;
+        //cout<< Dust_grain_list.size() << endl;
         inter_particle_ca();
 		time_list.push_back(time_list.back() + dt);
-
+        
         #pragma omp parallel for
         for (int i = 0; i < Dust_grain_list.size(); i++){
+            //advance via the rk4 and add the predicted postiosn to the momentary list
             Dust_grain_list[i].step(dt);
             Dust_grain_list[i].time_list_dust.push_back(time_list.back());
-            Dust_grain_list[i].a_c = {0,0,0};
+            Dust_grain_list[i].a_c = {0,0,0};//NOT SURE ABOUT THIS
             Dust_grain_list[i].x_history.push_back(Dust_grain_list[i].W_vec[0]/lambda_D);
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
-            v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
+            v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);
         };
         calc_temperature();
         v_squared_sum = 0;
     }
 };
+
+std::vector<std::pair<std::string, std::vector<double>>> read_csv(std::string filename){
+
+    // Create a vector of <string, int vector> pairs to store the result
+    std::vector<std::pair<std::string, std::vector<double>>> result;
+
+    // Create an input filestream
+    std::ifstream myFile(filename);
+
+    // Make sure the file is open
+    if(!myFile.is_open()) throw std::runtime_error("Could not open file");
+
+    // Helper vars
+    std::string line, colname;
+    double val;
+
+    // Read the column names
+    if(myFile.good())
+    {
+        // Extract the first line in the file
+        std::getline(myFile, line);
+
+        // Create a stringstream from line
+        std::stringstream ss(line);
+
+        // Extract each column name
+        while(std::getline(ss, colname, ',')){
+            
+            // Initialize and add <colname, int vector> pairs to result
+            result.push_back({colname, std::vector<double> {}});
+        }
+    }
+
+    // Read data, line by line
+    while(std::getline(myFile, line))
+    {
+        // Create a stringstream of the current line
+        std::stringstream ss(line);
+        
+        // Keep track of the current column index
+        int colIdx = 0;
+        
+        // Extract each integer
+        while(ss >> val){
+            
+            // Add the current integer to the 'colIdx' column's values vector
+            result.at(colIdx).second.push_back(val);
+            
+            // If the next token is a comma, ignore it and move on
+            if(ss.peek() == ',') ss.ignore();
+            
+            // Increment the column index
+            colIdx++;
+        }
+    }
+
+    // Close file
+    myFile.close();
+
+    return result;
+}
 
 void write_csv(std::string filename, std::vector<std::pair<std::string, std::vector<double>>> dataset){
     // Create an output filestream object
@@ -434,34 +412,33 @@ void write_csv(std::string filename, std::vector<std::pair<std::string, std::vec
 
 int main(){
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    std::vector<double> speed_list;
     std::cout << "Running..." << std::endl;
+    std::vector<double> speed_list;
 
-    Dust_Container Dusty_plasma_crystal = Dust_Container(dust_grain_max_input);
+    std::vector<std::pair<std::string, std::vector<double>>> dust_grain_data = read_csv(load_file);
 
-    while ((Dusty_plasma_crystal.temperature >  dt_condition_b)  || (Dusty_plasma_crystal.time_list.size() < frame_req)){
-        Dusty_plasma_crystal.next_frame(dt_a);
-    }
-    std::cout << Dusty_plasma_crystal.time_list.size() << std::endl;
-    while (Dusty_plasma_crystal.temperature >  dt_condition_c){
-        Dusty_plasma_crystal.next_frame(dt_b);
-    }
-    std::cout << Dusty_plasma_crystal.time_list.size() << std::endl;
-    while (Dusty_plasma_crystal.time_list.back() < time_limit){
-        Dusty_plasma_crystal.next_frame(dt_c);
+    int dust_grain_max_input = dust_grain_data[0].second.size();
+
+    Load_Dust_Container Dusty_plasma_crystal = Load_Dust_Container(dust_grain_max_input,q_D_input);
+
+    Dusty_plasma_crystal.load_dust_grains(dust_grain_data);
+
+    for(int i = 0; i < frames; i++){
+        //""" do the loop advancing by dt each time"""
+        Dusty_plasma_crystal.next_frame(dt_input);
     }
 
     std::cout << "Simulation finished" << std::endl;
 
     /////////////////////
 
-    std::string filename = "HPC_Data/Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    std::string filename = "HPC_Data/Load_Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
     filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename += "_container_length_" + std::to_string(container_length);
     filename += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
     filename += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size());
     filename += "_phi_wall_z_" + std::to_string(phi_wall_z);
-    filename += "_wake_potential_below_" + std::to_string(wake_potential_below);
+    filename += "_wake_potential_below _" + std::to_string(wake_potential_below);
     filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename += "_coulomb_limit_" + std::to_string(coulomb_limit);
     filename += ".csv";
@@ -483,16 +460,15 @@ int main(){
     write_csv(filename, vals);
     std::cout << "FILENAME:" << filename << std::endl;
 
-
     //////////////
 
-    std::string filename_end = "HPC_Data/Final_Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    std::string filename_end = "HPC_Data/Load_Final_Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
     filename_end += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename_end += "_container_length_" + std::to_string(container_length);
     filename_end += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
     filename_end += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size());
     filename_end += "_phi_wall_z_" + std::to_string(phi_wall_z);
-    filename_end += "_wake_potential_below_" + std::to_string(wake_potential_below);
+    filename_end += "_wake_potential_below _" + std::to_string(wake_potential_below);
     filename_end += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename_end += "_coulomb_limit_" + std::to_string(coulomb_limit);
     filename_end += ".csv";
@@ -525,7 +501,7 @@ int main(){
     std::cout << "FILENAME_END:" << filename_end << std::endl;
 
     /////////////
-
+    
     std::cout << "done" << std::endl;
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
