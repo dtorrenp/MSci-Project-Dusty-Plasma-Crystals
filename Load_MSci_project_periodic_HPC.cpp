@@ -10,12 +10,13 @@
 #include <string>
 #include <random>
 #include <chrono>
+#include <sstream>
 
 //CRITICAL VALUES
-const double q_D_input = -2;
+const double q_D_input = -1.80801e-015;
 const double frames = 1000;
-const double dt_input = 1e-4;
-const std::string load_file = "HPC_Data/blah"; 
+const double dt_input = 1e-5;
+const std::string load_file = "HPC_Data/Final_Periodic_Dust_grain_max_250_Final_Temperature_8.839483_frames_100002.csv"; 
 
 //CONSTANTS TO FUCK ABOUT WITH
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
@@ -26,8 +27,7 @@ const double Z_n = 18;//atomic number for argon neutral gas
 const double grain_R = 7*1e-6;
 const double dust_grain_density = 1.49*1e3;
 const double phi_wall_z = -100.0;//volts
-const double wake_potential_below = 2*grain_R;
-const double wake_charge_multiplier = 0.5;
+const double wake_charge_multiplier = 1;
 const double coulomb_limit = 5;
 const double a_0 = 1;//intial guess for halley's method
 const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
@@ -50,6 +50,7 @@ const double beta = T_i/T_e;
 const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
+const double wake_potential_below = 1*lambda_D ;
 const double drop_height = 10.1*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_length = 10.0*lambda_D; //container radius
 const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
@@ -432,7 +433,7 @@ int main(){
 
     /////////////////////
 
-    std::string filename = "HPC_Data/Load_Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    std::string filename = "HPC_Data_Loaded/Load_Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
     filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename += "_container_length_" + std::to_string(container_length);
     filename += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
@@ -462,7 +463,7 @@ int main(){
 
     //////////////
 
-    std::string filename_end = "HPC_Data/Load_Final_Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    std::string filename_end = "HPC_Data_Loaded/Load_Final_Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
     filename_end += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename_end += "_container_length_" + std::to_string(container_length);
     filename_end += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);

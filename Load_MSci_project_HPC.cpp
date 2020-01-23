@@ -10,12 +10,13 @@
 #include <string>
 #include <random>
 #include <chrono>
+#include <sstream>
 
 //CRITICAL VALUES
-const double q_D_input = -2;
+const double q_D_input = -1.80801e-015;
 const double frames = 1000;
-const double dt_input = 1e-4;
-const std::string load_file = "HPC_Data/blah"; 
+const double dt_input = 1e-5;
+const std::string load_file = "HPC_Data/Final_Dust_grain_max_250_Final_Temperature_884.282958_frames_100002.csv"; 
 
 //CONSTANTS TO FUCK ABOUT WITH
 const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
@@ -382,7 +383,7 @@ int main(){
 
     /////////////////////
 
-    std::string filename = "HPC_Data/Load_Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    std::string filename = "HPC_Data_Loaded/Load_Finite_Dust_grain_max_" + std::to_string(dust_grain_max_input);
     filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename += "_container_radius_" + std::to_string(container_radius);
     filename += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
@@ -413,7 +414,7 @@ int main(){
 
     //////////////
 
-    std::string filename_end = "HPC_Data/Load_Final_Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    std::string filename_end = "HPC_Data_Loaded/Load_Final_Finite_Dust_grain_max_" + std::to_string(dust_grain_max_input);
     filename_end += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
     filename_end += "_container_radius_" + std::to_string(container_radius);
     filename_end += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
