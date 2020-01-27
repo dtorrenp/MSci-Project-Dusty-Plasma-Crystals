@@ -10,12 +10,13 @@
 #include <string>
 #include <random>
 #include <chrono>
+#include <map>
 
 //CRITICAL VALUES
 const int dust_grain_max_input = 5;//dust grain max number
 //const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 const double dt_a = 1.0e-3;
-const double time_limit = 1.0;
+const double time_limit = 0.1;
 const double frame_req = 5;
 
 //CONSTANTS TO FUCK ABOUT WITH
@@ -30,8 +31,6 @@ const double phi_wall_z = -100.0;//volts
 const double phi_wall_r = -1000.0;//volts
 const double wake_charge_multiplier = 1.0;
 const double coulomb_limit = 5;
-const double a_0 = 1.8e-15;//intial guess for halley's method
-const double root = 1.0e-17;//preciscion of root finding method used to get dust charge
 const double init_speed = 1e-5;
 
 //CONSTANTS DEPENDANT ON ACTUAL PHYSICS
@@ -54,6 +53,14 @@ const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.
 const double wake_potential_below = 1*lambda_D;
 const double drop_height = 9.8*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_radius = 25.0*lambda_D;//set radius of contianer ie wall radius
+
+//related to finding the charge of the dust grains
+const double dz = lambda_D/100;
+const double lower_lim_z = 9.0*lambda_D;
+const double upper_lim_z = 12.0*lambda_D;
+const double a_0 = -1.0;//intial guess for halley's method
+const double root = 1.0e-4;//preciscion of root finding method used to get dust charge
+
 //const double container_dust_dist_creation = sqrt(container_radius/(2*lambda_D));
 const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
 const double r_se = 25.0*lambda_D;//distance from wall to the sheathe edge
@@ -176,6 +183,7 @@ class Dust_Container{
 
     public:
 	std::vector<double> time_list;
+    std::map<double, double> charge_list;
     std::vector<Dust_grain> Dust_grain_list;
     std::vector<std::pair<Dust_grain&,Dust_grain&>> combs_list;
     double v_squared_sum;
@@ -186,16 +194,15 @@ class Dust_Container{
     {
             //q_D = OML_charge();
             //Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
+            //std::cout << "start calc charge" << std::endl;
+            calc_dust_grain_charges(dz, lower_lim_z,upper_lim_z);
+            //std::cout << "done" << std::endl;
+            //std::cout << "make grains" << std::endl;
             create_dust_grains();
+            //std::cout << "done" << std::endl;
     } 
 
     //Find the dust grain sufrace potential using OML model
-    double OML_charge(double z){
-        //basically we have an equation that has the normalized surface potetnail in it and we rootfind for it, using the lambert W function form though tbh i agree with coppins this isnt actually necesary
-        double Phi_D_norm = find_phi_D_norm(a_0,z,root);
-        double phi_grain =  (k_b*T_e*Phi_D_norm)/(e_charge);// unormalize it
-        return 4.0*M_PI*epsilon_0*grain_R*phi_grain;
-    }
     double f_x(double x_n, double A, double Phi_sheath){
         return A*exp(Phi_sheath + x_n) - (2/(Phi_sheath - 1))*x_n - 1;
     }
@@ -209,24 +216,54 @@ class Dust_Container{
         double f_x_0 = f_x(x_n,A,Phi_sheath);
         double f_x_1 = f_x_first_derv(x_n,A,Phi_sheath);
         double f_x_2 = f_x_second_derv(x_n,A,Phi_sheath);
+        std::cout<< x_n << " , " << A << " , " << Phi_sheath << " , "<< f_x_0 << " , " << f_x_1 << " , " << f_x_2 << std::endl;
         double x_plus = x_n - ((2*f_x_0*f_x_1)/(2.0*(pow(f_x_1,2))-f_x_0*f_x_2));
         return x_plus;
     }
     double find_phi_D_norm(double a_0,double z,double root_prec){
-
+        double Phi_sheath;
+        double Phi_sheath_norm;
         double A = sqrt((8*k_b*T_e)/(pow(v_B,2)*M_PI*m_e));
-        double Phi_sheath = k_z_restore*pow((z - z_se),2);
+        if (z > z_se){
+            Phi_sheath = 0;
+        }
+        else{
+            Phi_sheath = k_z_restore*pow((z - z_se),2);
+        }
+
+        Phi_sheath_norm = (e_charge*Phi_sheath)/(k_b*T_e);
+
+        //std::cout<< Phi_sheath << "," << Phi_sheath_norm << std::endl;
 
         //root finding method using "halley's method" like newtons method but third order
         double a_n = a_0;
-        double a_plus = calc_x_plus(a_0,A,Phi_sheath);//do i need to give type if product of a thing?
+        double a_plus = calc_x_plus(a_0,A,Phi_sheath_norm);//do i need to give type if product of a thing?
 
         while(abs(a_plus - a_n) > root_prec){
+            //std::cout << "boosss" << std::endl;
+            //std::cout << a_n  << std::endl;
             a_n = a_plus;
             a_plus = calc_x_plus(a_n,A,Phi_sheath);
         }
+        //std::cout << "BRAHHHHHHHHH"  << std::endl;
         double W_0 = (a_n + a_plus)/2;
         return W_0;
+    }
+    double OML_charge(double z){
+        //basically we have an equation that has the normalized surface potetnail in it and we rootfind for it, using the lambert W function form though tbh i agree with coppins this isnt actually necesary
+        //std::cout << "sike" << std::endl;
+        double Phi_D_norm = find_phi_D_norm(a_0,z,root);
+        //std::cout << "duuuude" << std::endl;
+        //std::cout << Phi_D_norm  << std::endl;
+        double phi_grain =  (k_b*T_e*Phi_D_norm)/(e_charge);// unormalize it
+        return 4.0*M_PI*epsilon_0*grain_R*phi_grain;
+    }
+    void calc_dust_grain_charges(double d_z, double low_z, double high_z){
+        for(double i = low_z; i < high_z; i+= d_z){
+            //std::cout << "heya" << std::endl;
+            //std::cout << i << ","<< (i)/lambda_D << std::endl;
+            charge_list.insert( std::pair<double,double> (i, OML_charge(i)) );
+        }
     }
 
     void calc_temperature(){
@@ -260,7 +297,8 @@ class Dust_Container{
             std::cout << Dust_grain_list.size() << std::endl;
         } 
         for(int i = 0; i <  Dust_grain_list.size(); i++){
-            Dust_grain_list[i].charge = OML_charge(Dust_grain_list[i].W_vec[2]);
+            Dust_grain_list[i].charge = charge_list.lower_bound( Dust_grain_list[i].W_vec[2])->second;
+            std::cout << "yes" << std::endl;
             std::cout << Dust_grain_list[i].charge << std::endl;
             Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
             v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
@@ -333,7 +371,7 @@ class Dust_Container{
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
             
-            Dust_grain_list[i].charge = OML_charge(Dust_grain_list[i].W_vec[2]);
+            Dust_grain_list[i].charge = charge_list.lower_bound(Dust_grain_list[i].W_vec[2])->second;
             Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
 
             v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);

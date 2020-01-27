@@ -99,8 +99,8 @@ if status == "Compile":
       print ("run again")
 
 #%%
-DATA_NAME = "Periodic_Dust_grain_max_250_Final_Temperature_8.844447_frames_100002"
-FILENAME = "HPC_Data/" + DATA_NAME + ".csv"#input("Data file name?")
+DATA_NAME = input("Data name?")#"Periodic_Dust_grain_max_250_Final_Temperature_8.844447_frames_100002" 
+FILENAME = input("Data file name?")#"HPC_Data/" + DATA_NAME + ".csv"#
 NEW_FOLDER = "Figures/" + DATA_NAME
 if str(os.path.exists(NEW_FOLDER)) == "False":
    os.mkdir(NEW_FOLDER)
