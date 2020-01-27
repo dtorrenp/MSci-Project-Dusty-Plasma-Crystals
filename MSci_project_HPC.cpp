@@ -12,9 +12,9 @@
 #include <chrono>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 250;//dust grain max number
+const int dust_grain_max_input = 5;//dust grain max number
 //const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-const double dt_a = 1.0e-5;
+const double dt_a = 1.0e-3;
 const double time_limit = 1.0;
 const double frame_req = 5;
 
@@ -30,8 +30,8 @@ const double phi_wall_z = -100.0;//volts
 const double phi_wall_r = -1000.0;//volts
 const double wake_charge_multiplier = 1.0;
 const double coulomb_limit = 5;
-const double a_0 = 1;//intial guess for halley's method
-const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
+const double a_0 = 1.8e-15;//intial guess for halley's method
+const double root = 1.0e-17;//preciscion of root finding method used to get dust charge
 const double init_speed = 1e-5;
 
 //CONSTANTS DEPENDANT ON ACTUAL PHYSICS
@@ -107,10 +107,11 @@ class Dust_grain{
     std::vector<double>wake_pos;
     double charge;
 
-    Dust_grain(double q, double time_init):charge(q),a_c{0,0,0},time_list_dust{time_init},wake_charge(abs(q)*wake_charge_multiplier),v_i_z(0),
+    Dust_grain(double time_init):a_c{0,0,0},time_list_dust{time_init},v_i_z(0),
     generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m_D)))
     {
-        prod_W_vec();        
+        prod_W_vec();
+        //DEAL WITH THIS //wake_charge(abs(q)*wake_charge_multiplier)        
     }
 
     double calc_speed(){
@@ -183,44 +184,46 @@ class Dust_Container{
 
 	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0},v_squared_sum{0}
     {
-            q_D = OML_charge();
+            //q_D = OML_charge();
             //Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
             create_dust_grains();
     } 
 
     //Find the dust grain sufrace potential using OML model
-    double OML_charge(){
+    double OML_charge(double z){
         //basically we have an equation that has the normalized surface potetnail in it and we rootfind for it, using the lambert W function form though tbh i agree with coppins this isnt actually necesary
-        double k = ((pow((mu*beta),0.5))/Z)*exp(beta/Z);
-        double W_0_H = find_W_H(a_0,k,root);
-        double n_double = W_0_H - (beta/Z);
-        double phi_grain =  (k_b*T_e*n_double)/(e_charge);// unormalize it
+        double Phi_D_norm = find_phi_D_norm(a_0,z,root);
+        double phi_grain =  (k_b*T_e*Phi_D_norm)/(e_charge);// unormalize it
         return 4.0*M_PI*epsilon_0*grain_R*phi_grain;
     }
-    double f_x(double x_n, double z){
-        return x_n*exp(x_n) - z;
+    double f_x(double x_n, double A, double Phi_sheath){
+        return A*exp(Phi_sheath + x_n) - (2/(Phi_sheath - 1))*x_n - 1;
     }
-    double f_x_first_derv(double x_n){
-        return exp(x_n)*(1 + x_n);
+    double f_x_first_derv(double x_n, double A, double Phi_sheath){
+        return A*exp(Phi_sheath + x_n) - (2/(Phi_sheath - 1));
     }
-    double f_x_second_derv(double x_n){
-        return exp(x_n)*(2 + x_n);
+    double f_x_second_derv(double x_n, double A, double Phi_sheath){
+        return A*exp(Phi_sheath + x_n);
     }
-    double calc_x_plus(double x_n,double z){
-        double f_x_0 = f_x(x_n,z);
-        double f_x_1 = f_x_first_derv(x_n);
-        double f_x_2 = f_x_second_derv(x_n);
+    double calc_x_plus(double x_n, double A, double Phi_sheath){
+        double f_x_0 = f_x(x_n,A,Phi_sheath);
+        double f_x_1 = f_x_first_derv(x_n,A,Phi_sheath);
+        double f_x_2 = f_x_second_derv(x_n,A,Phi_sheath);
         double x_plus = x_n - ((2*f_x_0*f_x_1)/(2.0*(pow(f_x_1,2))-f_x_0*f_x_2));
         return x_plus;
     }
-    double find_W_H(double a_0,double z,double root_prec){
+    double find_phi_D_norm(double a_0,double z,double root_prec){
+
+        double A = sqrt((8*k_b*T_e)/(pow(v_B,2)*M_PI*m_e));
+        double Phi_sheath = k_z_restore*pow((z - z_se),2);
+
         //root finding method using "halley's method" like newtons method but third order
         double a_n = a_0;
-        double a_plus = calc_x_plus(a_0,z);//do i need to give type if product of a thing?
-    
+        double a_plus = calc_x_plus(a_0,A,Phi_sheath);//do i need to give type if product of a thing?
+
         while(abs(a_plus - a_n) > root_prec){
             a_n = a_plus;
-            a_plus = calc_x_plus(a_n,z);
+            a_plus = calc_x_plus(a_n,A,Phi_sheath);
         }
         double W_0 = (a_n + a_plus)/2;
         return W_0;
@@ -244,9 +247,8 @@ class Dust_Container{
     void create_dust_grains(){
         double r_01_mag;
         while(Dust_grain_list.size() < dust_grain_max){
-            Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
+            Dust_grain_list.push_back(Dust_grain(time_list.back()));
             std::vector<double> pos_1 (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);
-
             for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
                 std::vector<double> pos_0 (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
                 r_01_mag = v_abs(element_add(pos_1, element_mul(pos_0,-1)));
@@ -258,6 +260,9 @@ class Dust_Container{
             std::cout << Dust_grain_list.size() << std::endl;
         } 
         for(int i = 0; i <  Dust_grain_list.size(); i++){
+            Dust_grain_list[i].charge = OML_charge(Dust_grain_list[i].W_vec[2]);
+            std::cout << Dust_grain_list[i].charge << std::endl;
+            Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
             v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
         }
         calc_temperature();
@@ -327,15 +332,12 @@ class Dust_Container{
             Dust_grain_list[i].x_history.push_back(Dust_grain_list[i].W_vec[0]/lambda_D);
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
+            
+            Dust_grain_list[i].charge = OML_charge(Dust_grain_list[i].W_vec[2]);
+            Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
+
             v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);
 
-            /*
-            if( (i == (Dust_grain_list.size() - 1)) && (Dust_grain_list[i].W_vec[2] < z_se) && (Dust_grain_list.size() < dust_grain_max) ){
-                //""" if the last dust grain added has reached the lower sheathe electrode add another dust grain unless we have reached the dust grain number cap"""
-                Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
-                combs_list_produce();
-            }
-            */
         };
         calc_temperature();
         v_squared_sum = 0;
