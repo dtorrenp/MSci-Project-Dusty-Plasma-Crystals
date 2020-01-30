@@ -12,26 +12,33 @@
 #include <chrono>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 250;//dust grain max number
+const int dust_grain_max_input = 50; //dust grain max number
 //const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-const double dt_a= 1.0e-5;
+const double dt_a = 1.0e-5;
+const double dt_c = 1.0e-4; //time step in rk4, needs to be small enough to be precise but large enough we can actually move the stuff forward in time
+const double dt_b = 1.0e-3;
+const double dt_condition_b = 1e3; //temperature
+const double dt_condition_c = 1e2;
 const double time_limit = 1.0;
 const double frame_req = 5;
 
 //CONSTANTS TO FUCK ABOUT WITH
-const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
-const double n_i0 = 1.0e15;
-const double n_n0 = 1.0e24;//WAAAAAYYYYYYYYYYYY TO LARGE
-const double Z = 1;//atomic number??
-const double Z_n = 18;//atomic number for argon neutral gas
-const double grain_R = 7*1e-6;
-const double dust_grain_density = 1.49*1e3;
-const double phi_wall_z = -100.0;//volts
-const double wake_charge_multiplier = 1.0;
-const double coulomb_limit = 5;
-const double a_0 = 1;//intial guess for halley's method
-const double root = 1.0e-14;//preciscion of root finding method used to get dust charge
+const double n_e0 = 1.0e15; //electron number density (in bulk plasma)
+const double n_i0 = 1.0e15; //ion number density (in bulk plasma)
+const double n_n0 = 1.0e24; //electron number density (in bulk plasma)
+const double Z = 1; //ion atomic number
+const double Z_n = 18; //neutrals atomic number (Ar)
+const double grain_R = 7*1e-6; //dust grain radius
+const double dust_grain_density = 1.49*1e3; //dust density
+const double phi_wall_z = -100.0; //vertical wall potential [volts]
 const double init_speed = 1e-5;
+
+const double wake_potential_below = 2*grain_R;
+const double wake_charge_multiplier = 0.5;
+const double coulomb_limit = 5; 
+
+const double a_0 = 1; //intial guess for halley's method
+const double root = 1.0e-14; //epsilon precision for Halley's method
 
 //PHYSICAL CONSTANTS
 const double g_z = 9.81; //gravitational field strength
@@ -52,18 +59,18 @@ const double beta = T_i/T_e; //temperature normalisation
 const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5); //electron Debye length
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5); //ion Debye length
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5); //total Debye length
-const double wake_potential_below = 2*lambda_D;
+
 const double drop_height = 9.8*lambda_D; //dust drop height
 const double container_length = 10.0*lambda_D; //container radius
-const double z_se = 10.0*lambda_D;//sheath edge height
+const double z_se = 10.0*lambda_D; //sheath edge height
 
 const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
 const double v_B = pow((k_b*T_e/m_i),0.5);
 const double v_Tn = pow((k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
 const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn; //neutral drag coefficient
 const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0; //ion drag coefficient
-const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
-const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i);
+const double therm_coeff = sqrt(2*k_b*T_i*alpha_n); //neutron Brownian kick coefficient
+const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i); //ion Brownian kick coefficient
 //make functions for element-wise multiplication and addition of vectors
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
     std::vector<double> c;
@@ -434,8 +441,16 @@ int main(){
 
     Dust_Container Dusty_plasma_crystal = Dust_Container(dust_grain_max_input);
 
-    while (Dusty_plasma_crystal.time_list.back() < time_limit){
+    while ((Dusty_plasma_crystal.temperature >  dt_condition_b)  || (Dusty_plasma_crystal.time_list.size() < frame_req)){
         Dusty_plasma_crystal.next_frame(dt_a);
+    }
+    std::cout << Dusty_plasma_crystal.time_list.size() << std::endl;
+    while (Dusty_plasma_crystal.temperature >  dt_condition_c){
+        Dusty_plasma_crystal.next_frame(dt_b);
+    }
+    std::cout << Dusty_plasma_crystal.time_list.size() << std::endl;
+    while (Dusty_plasma_crystal.time_list.back() < time_limit){
+        Dusty_plasma_crystal.next_frame(dt_c);
     }
 
     std::cout << "Simulation finished" << std::endl;
@@ -443,8 +458,14 @@ int main(){
     /////////////////////
 
     std::string filename = "HPC_Data/Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
-    filename += "_Final_Temperature_" + std::to_string(Dusty_plasma_crystal.temperature);
+    filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
+    filename += "_container_length_" + std::to_string(container_length);
+    filename += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
     filename += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size());
+    filename += "_phi_wall_z_" + std::to_string(phi_wall_z);
+    filename += "_wake_potential_below_" + std::to_string(wake_potential_below);
+    filename += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
+    filename += "_coulomb_limit_" + std::to_string(coulomb_limit);
     filename += ".csv";
 
     std::vector<std::pair<std::string,std::vector<double>>> vals;
@@ -460,15 +481,22 @@ int main(){
     vals.push_back(make_pair("Temperature_list", Dusty_plasma_crystal.temperature_history));
     vals.push_back(make_pair("Speed_list", speed_list));
 
+    //vals.push_back(make_pair("Time_list", Dusty_plasma_crystal.time_list));
     write_csv(filename, vals);
-
     std::cout << "FILENAME:" << filename << std::endl;
+
 
     //////////////
 
     std::string filename_end = "HPC_Data/Final_Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
-    filename_end += "_Final_Temperature_" + std::to_string(Dusty_plasma_crystal.temperature);
+    filename_end += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
+    filename_end += "_container_length_" + std::to_string(container_length);
+    filename_end += "_Final_Termperature_" + std::to_string(Dusty_plasma_crystal.temperature);
     filename_end += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size());
+    filename_end += "_phi_wall_z_" + std::to_string(phi_wall_z);
+    filename_end += "_wake_potential_below_" + std::to_string(wake_potential_below);
+    filename_end += "_wake_charge_multiplier_" + std::to_string(wake_charge_multiplier);
+    filename_end += "_coulomb_limit_" + std::to_string(coulomb_limit);
     filename_end += ".csv";
 
     std::vector<std::pair<std::string, std::vector<double> >> vals_end;

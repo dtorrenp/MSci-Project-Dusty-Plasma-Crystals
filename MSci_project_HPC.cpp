@@ -13,25 +13,30 @@
 #include <map>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 5;//dust grain max number
+const int dust_grain_max_input = 5; //dust grain max number
 //const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 const double dt_a = 1.0e-3;
 const double time_limit = 0.5;
 const double frame_req = 5;
 
 //CONSTANTS TO FUCK ABOUT WITH
-const double n_e0 = 1.0e15;//electron and ion densities in bulk plasma
-const double n_i0 = 1.0e15;
-const double n_n0 = 1.0e24;//WAAAAAYYYYYYYYYYYY TO LARGE
-const double Z = 1;//atomic number??
-const double Z_n = 18;//atomic number for argon neutral gas
-const double grain_R = 7*1e-6;
-const double dust_grain_density = 1.49*1e3;
-const double phi_wall_z = -100.0;//volts
-const double phi_wall_r = -1000.0;//volts
-const double wake_charge_multiplier = 1.0;
-const double coulomb_limit = 5;
+const double n_e0 = 1.0e15; //electron number density (in bulk plasma)
+const double n_i0 = 1.0e15; //ion number density (in bulk plasma)
+const double n_n0 = 1.0e24; //electron number density (in bulk plasma)
+const double Z = 1; //ion atomic number
+const double Z_n = 18; //neutrals atomic number (Ar)
+const double grain_R = 7*1e-6; //dust grain radius
+const double dust_grain_density = 1.49*1e3; //dust density
+const double phi_wall_z = -100.0; //vertical wall potential [volts]
+const double phi_wall_r = -1000.0; //radial wall potential [volts]
 const double init_speed = 1e-5;
+
+const double wake_charge_multiplier = 1.0;
+const double wake_potential_below = 1*lambda_D;
+const double coulomb_limit = 5;
+
+const double drop_height = 9.8*lambda_D;
+const double container_radius = 25.0*lambda_D;
 
 //CONSTANTS DEPENDANT ON ACTUAL PHYSICS
 const double g_z = 9.81;//gravity
@@ -63,9 +68,9 @@ const double a_0_Sheath = -2.5;//intial guess for halley's method
 const double root = 1.0e-4;//preciscion of root finding method used to get dust charge
 
 //const double container_dust_dist_creation = sqrt(container_radius/(2*lambda_D));
-const double z_se = 10.0*lambda_D;//distance from bottom of container to the sheath edge
-const double r_se = 25.0*lambda_D;//distance from wall to the sheathe edge
-const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
+const double z_se = 10.0*lambda_D; //distance of vertical sheath from bottom of container
+const double r_se = 25.0*lambda_D; //distance of radial 'sheath' from wall of container
+const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2); //WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
 const double k_r_restore = -2.0*phi_wall_r/pow(r_se,2);
 const double v_B = pow((3*k_b*T_e/m_i),0.5);
 const double v_Tn = pow((3*k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
@@ -128,7 +133,7 @@ class Dust_grain{
     }
     
     void prod_W_vec(){
-        //when creating new dust grains gives them random x,y positions so the dust grains dont just stack on 0,0//
+        //when creating new dust grains gives them random x,y positions so the dust grains dont just stack on 0,0
         //std::cout << container_dust_dist_creation << "," <<(-container_dust_dist_creation/2.0 + (rand()/(RAND_MAX + 1.0))*container_dust_dist_creation)/lambda_D << std::endl;
         W_vec.push_back(-container_radius /4.0 + (rand()/(RAND_MAX + 1.0))*container_radius/2);//create random number centred about 0 with width container_radius/3
         W_vec.push_back(-container_radius /4.0 + (rand()/(RAND_MAX + 1.0))*container_radius/2);
