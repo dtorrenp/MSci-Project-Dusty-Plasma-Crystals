@@ -16,7 +16,7 @@
 const int dust_grain_max_input = 5;//dust grain max number
 //const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
 const double dt_a = 1.0e-3;
-const double time_limit = 0.1;
+const double time_limit = 0.5;
 const double frame_req = 5;
 
 //CONSTANTS TO FUCK ABOUT WITH
@@ -35,8 +35,8 @@ const double init_speed = 1e-5;
 
 //CONSTANTS DEPENDANT ON ACTUAL PHYSICS
 const double g_z = 9.81;//gravity
-const double e_charge = -1.6*1e-19;
-const double i_charge = 1.6*1e-19;
+const double e_charge = 1.6*1e-19;//magnitude of e charge
+const double i_charge = 1.6*1e-19;//magnitude of i charge DOES THIS NEED TO CHANGE WHEN USED IN THE ION DRAG?????
 const double m_i = 1.67*1e-27;
 const double m_e = 9.11*1e-31;
 const double m_n = Z_n*m_i;
@@ -55,10 +55,11 @@ const double drop_height = 9.8*lambda_D;//drop particles from this height, low s
 const double container_radius = 25.0*lambda_D;//set radius of contianer ie wall radius
 
 //related to finding the charge of the dust grains
-const double dz = lambda_D/100;
-const double lower_lim_z = 9.0*lambda_D;
-const double upper_lim_z = 12.0*lambda_D;
-const double a_0 = -1.0;//intial guess for halley's method
+const double dz = lambda_D/1000;
+const double lower_lim_z = 7.0*lambda_D;
+const double upper_lim_z = 15.0*lambda_D;
+const double a_0_OML = -0.5;
+const double a_0_Sheath = -2.5;//intial guess for halley's method
 const double root = 1.0e-4;//preciscion of root finding method used to get dust charge
 
 //const double container_dust_dist_creation = sqrt(container_radius/(2*lambda_D));
@@ -66,8 +67,8 @@ const double z_se = 10.0*lambda_D;//distance from bottom of container to the she
 const double r_se = 25.0*lambda_D;//distance from wall to the sheathe edge
 const double k_z_restore = -2.0*phi_wall_z/pow(z_se,2);//WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
 const double k_r_restore = -2.0*phi_wall_r/pow(r_se,2);
-const double v_B = pow((k_b*T_e/m_i),0.5);
-const double v_Tn = pow((k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
+const double v_B = pow((3*k_b*T_e/m_i),0.5);
+const double v_Tn = pow((3*k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
 const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn;//maybe 8/3
 const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0;
 const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
@@ -202,66 +203,80 @@ class Dust_Container{
             //std::cout << "done" << std::endl;
     } 
 
-    //Find the dust grain sufrace potential using OML model
-    double f_x(double x_n, double A, double Phi_sheath){
-        return A*exp(Phi_sheath + x_n) - (2/(Phi_sheath - 1))*x_n - 1;
+    double f_x_OML(double x_n){
+        return sqrt(beta)*(1-x_n/beta) -exp(x_n);
     }
-    double f_x_first_derv(double x_n, double A, double Phi_sheath){
-        return A*exp(Phi_sheath + x_n) - (2/(Phi_sheath - 1));
+    double f_x_first_derv_OML(double x_n){
+        return -sqrt(beta)*(1/beta) -exp(x_n);
     }
-    double f_x_second_derv(double x_n, double A, double Phi_sheath){
-        return A*exp(Phi_sheath + x_n);
+    double f_x_second_derv_OML(double x_n){
+        return -exp(x_n);
     }
-    double calc_x_plus(double x_n, double A, double Phi_sheath){
-        double f_x_0 = f_x(x_n,A,Phi_sheath);
-        double f_x_1 = f_x_first_derv(x_n,A,Phi_sheath);
-        double f_x_2 = f_x_second_derv(x_n,A,Phi_sheath);
-        std::cout<< x_n << " , " << A << " , " << Phi_sheath << " , "<< f_x_0 << " , " << f_x_1 << " , " << f_x_2 << std::endl;
+    double calc_x_plus_OML(double x_n){
+        double f_x_0 = f_x_OML(x_n);
+        double f_x_1 = f_x_first_derv_OML(x_n);
+        double f_x_2 = f_x_second_derv_OML(x_n);
         double x_plus = x_n - ((2*f_x_0*f_x_1)/(2.0*(pow(f_x_1,2))-f_x_0*f_x_2));
         return x_plus;
     }
-    double find_phi_D_norm(double a_0,double z,double root_prec){
-        double Phi_sheath;
-        double Phi_sheath_norm;
-        double A = sqrt((8*k_b*T_e)/(pow(v_B,2)*M_PI*m_e));
-        if (z > z_se){
-            Phi_sheath = 0;
-        }
-        else{
-            Phi_sheath = k_z_restore*pow((z - z_se),2);
-        }
-
-        Phi_sheath_norm = (e_charge*Phi_sheath)/(k_b*T_e);
-
-        //std::cout<< Phi_sheath << "," << Phi_sheath_norm << std::endl;
-
-        //root finding method using "halley's method" like newtons method but third order
-        double a_n = a_0;
-        double a_plus = calc_x_plus(a_0,A,Phi_sheath_norm);//do i need to give type if product of a thing?
+    double  find_phi_D_norm_OML(double a_init,double root_prec){
+        double a_n = a_init;
+        double a_plus = calc_x_plus_OML(a_init);//do i need to give type if product of a thing?
 
         while(abs(a_plus - a_n) > root_prec){
-            //std::cout << "boosss" << std::endl;
-            //std::cout << a_n  << std::endl;
             a_n = a_plus;
-            a_plus = calc_x_plus(a_n,A,Phi_sheath);
+            a_plus = calc_x_plus_OML(a_n);
         }
-        //std::cout << "BRAHHHHHHHHH"  << std::endl;
+        double W_0 = (a_n + a_plus)/2;
+        return W_0;
+    }
+
+    double f_x_Sheath(double x_n, double A, double B){
+        return A*exp(B + x_n) - (2/(2*B - 1))*x_n - 1;
+    }
+    double f_x_first_derv_Sheath(double x_n, double A, double B){
+        return A*exp(B + x_n) - (2/(2*B - 1));
+    }
+    double f_x_second_derv_Sheath(double x_n, double A, double B){
+        return A*exp(B + x_n);
+    }
+    double calc_x_plus_Sheath(double x_n, double A, double B){
+        double f_x_0 = f_x_Sheath(x_n,A,B);
+        double f_x_1 = f_x_first_derv_Sheath(x_n,A,B);
+        double f_x_2 = f_x_second_derv_Sheath(x_n,A,B);
+        double x_plus = x_n - ((2*f_x_0*f_x_1)/(2.0*(pow(f_x_1,2))-f_x_0*f_x_2));
+        return x_plus;
+    }
+    double  find_phi_D_norm_OML_Sheath(double a_init,double z,double root_prec){
+        double A = sqrt((8*k_b*T_e)/(pow(v_B,2)*M_PI*m_e));
+        double B = ((2*e_charge*phi_wall_z)/(k_b*T_e))*pow((z/z_se - 1),2);
+        double a_n = a_init;
+        double a_plus = calc_x_plus_Sheath(a_init,A,B);
+
+        while(abs(a_plus - a_n) > root_prec){
+            a_n = a_plus;
+            a_plus = calc_x_plus_Sheath(a_n,A,B);
+        }
         double W_0 = (a_n + a_plus)/2;
         return W_0;
     }
     double OML_charge(double z){
         //basically we have an equation that has the normalized surface potetnail in it and we rootfind for it, using the lambert W function form though tbh i agree with coppins this isnt actually necesary
-        //std::cout << "sike" << std::endl;
-        double Phi_D_norm = find_phi_D_norm(a_0,z,root);
-        //std::cout << "duuuude" << std::endl;
-        //std::cout << Phi_D_norm  << std::endl;
+        double Phi_D_norm;
+        if (z > z_se){
+            //std::cout << "OML" << std::endl;
+            Phi_D_norm = find_phi_D_norm_OML(a_0_OML,root);
+        }
+        else{
+            //std::cout << "OML Sheath" << std::endl;
+            Phi_D_norm = find_phi_D_norm_OML_Sheath(a_0_Sheath,z,root);
+        }
+        //std::cout << Phi_D_norm << std::endl;
         double phi_grain =  (k_b*T_e*Phi_D_norm)/(e_charge);// unormalize it
         return 4.0*M_PI*epsilon_0*grain_R*phi_grain;
     }
     void calc_dust_grain_charges(double d_z, double low_z, double high_z){
         for(double i = low_z; i < high_z; i+= d_z){
-            //std::cout << "heya" << std::endl;
-            //std::cout << i << ","<< (i)/lambda_D << std::endl;
             charge_list.insert( std::pair<double,double> (i, OML_charge(i)) );
         }
     }
@@ -479,7 +494,7 @@ int main(){
     vals_end.push_back(make_pair("V_Z",final_vz));
 
     write_csv(filename_end, vals_end);
-    std::cout << "FILENAME_END:" << filename_end << std::endl;
+    std::cout << "FILENAME FINAL:" << filename_end << std::endl;
 
     /////////////
     

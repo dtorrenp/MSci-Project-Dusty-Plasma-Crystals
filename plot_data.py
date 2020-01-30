@@ -42,14 +42,14 @@ colour_list = ["red","green","blue","orange","black","brown"]
 status = "Compile"#input("Compile or Run?")
 load = "no"
 boundry = "Finite"#input("Periodic or Finite?")
-standard_plots = "no"
+standard_plots = "yes"
 layer_plots = "no"#input("layers?")
 
-x_plot = "no"
-y_plot = "no"
-z_plot = "no"
+x_plot = "yes"
+y_plot = "yes"
+z_plot = "yes"
 final_pos_plot = "yes"
-motion_plot = "no" 
+motion_plot = "yes" 
 temp_plot = "yes"
 speed_plot = "yes"
 
@@ -99,8 +99,8 @@ if status == "Compile":
       print ("run again")
 
 #%%
-DATA_NAME = input("Data name?")#"Periodic_Dust_grain_max_250_Final_Temperature_8.844447_frames_100002" 
-FILENAME = input("Data file name?")#"HPC_Data/" + DATA_NAME + ".csv"#
+DATA_NAME = input("Data name?(NOT FILENAME)")#"Finite_Dust_grain_max_5_Final_Temperature_48.356239_frames_501"
+FILENAME = input("FILE name?")#"HPC_Data/Finite_Dust_grain_max_5_Final_Temperature_48.356239_frames_501.csv"
 NEW_FOLDER = "Figures/" + DATA_NAME
 if str(os.path.exists(NEW_FOLDER)) == "False":
    os.mkdir(NEW_FOLDER)
@@ -289,18 +289,6 @@ if standard_plots == "yes":
          plt.savefig(NEW_FOLDER + "/Finite_Speed_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
 
 if layer_plots == "yes":
-   # # creating an empty list
-   # layers = []
-   
-   # # number of elemetns as input
-   # n = int(input("Enter number of elements : "))
-
-   # # iterating till the range
-   # for i in range(0, n):
-   #    ele = float(input("numbers : "))
-   #    layers.append(ele) # adding the element
-   # print(layers)
-   #layers = [0.0, 9.5, 10.5, 11.5]
    layers = [0.0,9.5,10.25,11.5]
    layer_data = []
 
@@ -522,55 +510,55 @@ if layer_plots == "yes":
          ax.set_ylabel('Y position')
          ax.set_zlabel('Z position')
 
-if anim == "yes":
-   for n in np.arange(len(layers) - 1):
-      frames = len(data["Time_list_0"])
-      speed_mul = 100
-      size_mul = 1.2
+   if anim == "yes":
+      for n in np.arange(len(layers) - 1):
+         frames = len(data["Time_list_0"])
+         speed_mul = 100
+         size_mul = 1.2
 
-      fig, ax = plt.subplots()
-      plt.xlabel("x/lambda_D")
-      plt.ylabel("y/lambda_D")
-      plt.title("Animation layer: " + str(v))
-      dust_points = ax.plot([], [],"o")
+         fig, ax = plt.subplots()
+         plt.xlabel("x/lambda_D")
+         plt.ylabel("y/lambda_D")
+         plt.title("Animation layer: " + str(v))
+         dust_points = ax.plot([], [],"o")
 
-      if boundry == "Periodic":
-         ax.set(xlim=(-container_length/(2*lambda_D)*size_mul, container_length/(2*lambda_D)*size_mul), ylim=(-container_length/(2*lambda_D)*size_mul, container_length/(2*lambda_D)*size_mul))
-         rect = Rectangle((-container_length/(2*lambda_D), -container_length/(2*lambda_D)),width =  container_length/lambda_D, height = container_length/lambda_D, facecolor = "none", edgecolor="black", linewidth=1)
-         ax.add_patch(rect)
-         text = plt.text(-container_length/(2*lambda_D)*size_mul + 0.2, container_length/(2*lambda_D)*size_mul - 0.5,"")
-      else:
-         ax.set(xlim=(-container_radius/lambda_D, container_radius/lambda_D), ylim=(-container_radius/lambda_D, container_radius/lambda_D))
-         circle = Circle((0, 0), container_radius/lambda_D,facecolor = "none", edgecolor="black", linewidth=1)
-         ax.add_patch(circle)
-         text = plt.text(-container_radius/lambda_D + 0.5, container_radius/lambda_D - 2.5,"")
+         if boundry == "Periodic":
+            ax.set(xlim=(-container_length/(2*lambda_D)*size_mul, container_length/(2*lambda_D)*size_mul), ylim=(-container_length/(2*lambda_D)*size_mul, container_length/(2*lambda_D)*size_mul))
+            rect = Rectangle((-container_length/(2*lambda_D), -container_length/(2*lambda_D)),width =  container_length/lambda_D, height = container_length/lambda_D, facecolor = "none", edgecolor="black", linewidth=1)
+            ax.add_patch(rect)
+            text = plt.text(-container_length/(2*lambda_D)*size_mul + 0.2, container_length/(2*lambda_D)*size_mul - 0.5,"")
+         else:
+            ax.set(xlim=(-container_radius/lambda_D, container_radius/lambda_D), ylim=(-container_radius/lambda_D, container_radius/lambda_D))
+            circle = Circle((0, 0), container_radius/lambda_D,facecolor = "none", edgecolor="black", linewidth=1)
+            ax.add_patch(circle)
+            text = plt.text(-container_radius/lambda_D + 0.5, container_radius/lambda_D - 2.5,"")
 
-      #need vector with all the x points and all the y points
-      def get_data(v,layer_bottom,layer_top):
-         x = []
-         y = []
-         for i in np.arange(dust_grain_max):
-            if ( (data["Z_" + str(i)].values[last_val_index][0] >= layer_bottom ) and (data["Z_" + str(i)].values[last_val_index][0] <= layer_top)):
-               x.append(data["X_" + str(i)].iloc[v])
-               y.append(data["Y_" + str(i)].iloc[v])
-         time = data["Time_list_" + str(0)].iloc[v]
-         return [x,y,time]
+         #need vector with all the x points and all the y points
+         def get_data(v,layer_bottom,layer_top):
+            x = []
+            y = []
+            for i in np.arange(dust_grain_max):
+               if ( (data["Z_" + str(i)].values[last_val_index][0] >= layer_bottom ) and (data["Z_" + str(i)].values[last_val_index][0] <= layer_top)):
+                  x.append(data["X_" + str(i)].iloc[v])
+                  y.append(data["Y_" + str(i)].iloc[v])
+            time = data["Time_list_" + str(0)].iloc[v]
+            return [x,y,time]
 
-      def init():
-         """initialize animation"""
-         dust_points[0].set_data([], [])
-         text.set_text("Time = " + str(0) + "s")
-         return [dust_points[0],text]
+         def init():
+            """initialize animation"""
+            dust_points[0].set_data([], [])
+            text.set_text("Time = " + str(0) + "s")
+            return [dust_points[0],text]
 
-      def animate(i,layer_bottom,layer_top):
-         """perform animation step"""
-         data_anim = get_data(speed_mul*i,layer_bottom,layer_top)
-         # update pieces of the animation
-         dust_points[0].set_data(data_anim[0],data_anim[1])
-         text.set_text("Time = " + str(round(data_anim[2],5)) + "s")#updat value of the frame number
-         return [dust_points[0],text]
-      
-      ani = animation.FuncAnimation(fig, animate,interval=10, blit=True, init_func=init, frames = round(frames/speed_mul), fargs = [layers[n],layers[n+1]])
-      ani.save("Animation layer: " + str(v),fps=30) #save command
-      plt.close()
+         def animate(i,layer_bottom,layer_top):
+            """perform animation step"""
+            data_anim = get_data(speed_mul*i,layer_bottom,layer_top)
+            # update pieces of the animation
+            dust_points[0].set_data(data_anim[0],data_anim[1])
+            text.set_text("Time = " + str(round(data_anim[2],5)) + "s")#updat value of the frame number
+            return [dust_points[0],text]
+         
+         ani = animation.FuncAnimation(fig, animate,interval=10, blit=True, init_func=init, frames = round(frames/speed_mul), fargs = [layers[n],layers[n+1]])
+         ani.save("Animation layer: " + str(v),fps=30) #save command
+         plt.close()
 plt.show()
