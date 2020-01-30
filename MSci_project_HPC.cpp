@@ -14,8 +14,7 @@
 
 //CRITICAL VALUES
 const int dust_grain_max_input = 5; //dust grain max number
-//const double frames = 1e3;//number of frames, time taken is not linear as teh longer u run it the more particles it adds hence increases quadratically
-const double dt_a = 1.0e-3;
+const double dt_a = 1.0e-4;
 const double time_limit = 0.5;
 const double frame_req = 5;
 
@@ -30,13 +29,6 @@ const double dust_grain_density = 1.49*1e3; //dust density
 const double phi_wall_z = -100.0; //vertical wall potential [volts]
 const double phi_wall_r = -1000.0; //radial wall potential [volts]
 const double init_speed = 1e-5;
-
-const double wake_charge_multiplier = 1.0;
-const double wake_potential_below = 1*lambda_D;
-const double coulomb_limit = 5;
-
-const double drop_height = 9.8*lambda_D;
-const double container_radius = 25.0*lambda_D;
 
 //CONSTANTS DEPENDANT ON ACTUAL PHYSICS
 const double g_z = 9.81;//gravity
@@ -56,16 +48,20 @@ const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5)
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
 const double wake_potential_below = 1*lambda_D;
+const double wake_charge_multiplier = 1.0;
 const double drop_height = 9.8*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_radius = 25.0*lambda_D;//set radius of contianer ie wall radius
+const double coulomb_limit = 5;
 
 //related to finding the charge of the dust grains
 const double dz = lambda_D/1000;
+const double root = dz/10;//preciscion of root finding method used to get dust charge
+
 const double lower_lim_z = 7.0*lambda_D;
 const double upper_lim_z = 15.0*lambda_D;
 const double a_0_OML = -0.5;
 const double a_0_Sheath = -2.5;//intial guess for halley's method
-const double root = 1.0e-4;//preciscion of root finding method used to get dust charge
+
 
 //const double container_dust_dist_creation = sqrt(container_radius/(2*lambda_D));
 const double z_se = 10.0*lambda_D; //distance of vertical sheath from bottom of container
@@ -111,7 +107,6 @@ class Dust_grain{
     public:
     std::vector<double>W_vec;
     std::vector<double>a_c;
-    std::vector<double>time_list_dust;
     std::vector<double> x_history;
     std::vector<double> y_history;
     std::vector<double> z_history;
@@ -120,11 +115,10 @@ class Dust_grain{
     std::vector<double>wake_pos;
     double charge;
 
-    Dust_grain(double time_init):a_c{0,0,0},time_list_dust{time_init},v_i_z(0),
+    Dust_grain():a_c{0,0,0},v_i_z(0),
     generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m_D)))
     {
-        prod_W_vec();
-        //DEAL WITH THIS //wake_charge(abs(q)*wake_charge_multiplier)        
+        prod_W_vec();      
     }
 
     double calc_speed(){
@@ -198,14 +192,8 @@ class Dust_Container{
 
 	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0},v_squared_sum{0}
     {
-            //q_D = OML_charge();
-            //Dust_grain_list.push_back(Dust_grain(q_D,time_list.back()));
-            //std::cout << "start calc charge" << std::endl;
             calc_dust_grain_charges(dz, lower_lim_z,upper_lim_z);
-            //std::cout << "done" << std::endl;
-            //std::cout << "make grains" << std::endl;
             create_dust_grains();
-            //std::cout << "done" << std::endl;
     } 
 
     double f_x_OML(double x_n){
@@ -269,14 +257,11 @@ class Dust_Container{
         //basically we have an equation that has the normalized surface potetnail in it and we rootfind for it, using the lambert W function form though tbh i agree with coppins this isnt actually necesary
         double Phi_D_norm;
         if (z > z_se){
-            //std::cout << "OML" << std::endl;
             Phi_D_norm = find_phi_D_norm_OML(a_0_OML,root);
         }
         else{
-            //std::cout << "OML Sheath" << std::endl;
             Phi_D_norm = find_phi_D_norm_OML_Sheath(a_0_Sheath,z,root);
         }
-        //std::cout << Phi_D_norm << std::endl;
         double phi_grain =  (k_b*T_e*Phi_D_norm)/(e_charge);// unormalize it
         return 4.0*M_PI*epsilon_0*grain_R*phi_grain;
     }
@@ -284,6 +269,7 @@ class Dust_Container{
         for(double i = low_z; i < high_z; i+= d_z){
             charge_list.insert( std::pair<double,double> (i, OML_charge(i)) );
         }
+        std::cout << charge_list.size() << std::endl;
     }
 
     void calc_temperature(){
@@ -302,9 +288,10 @@ class Dust_Container{
     }
 
     void create_dust_grains(){
+        std::cout << dz << "," << root << std::endl;
         double r_01_mag;
         while(Dust_grain_list.size() < dust_grain_max){
-            Dust_grain_list.push_back(Dust_grain(time_list.back()));
+            Dust_grain_list.push_back(Dust_grain());
             std::vector<double> pos_1 (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);
             for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
                 std::vector<double> pos_0 (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
@@ -318,8 +305,6 @@ class Dust_Container{
         } 
         for(int i = 0; i <  Dust_grain_list.size(); i++){
             Dust_grain_list[i].charge = charge_list.lower_bound( Dust_grain_list[i].W_vec[2])->second;
-            std::cout << "yes" << std::endl;
-            std::cout << Dust_grain_list[i].charge << std::endl;
             Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
             v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
         }
@@ -385,13 +370,13 @@ class Dust_Container{
         for (int i = 0; i < Dust_grain_list.size(); i++){
             //advance via the rk4 and add the predicted postiosn to the momentary list
             Dust_grain_list[i].step(dt);
-            Dust_grain_list[i].time_list_dust.push_back(time_list.back());
             Dust_grain_list[i].a_c = {0,0,0};//NOT SURE ABOUT THIS
             Dust_grain_list[i].x_history.push_back(Dust_grain_list[i].W_vec[0]/lambda_D);
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
             
             Dust_grain_list[i].charge = charge_list.lower_bound(Dust_grain_list[i].W_vec[2])->second;
+            //std::cout << Dust_grain_list[i].charge << std::endl;
             Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
 
             v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);
@@ -456,10 +441,9 @@ int main(){
         vals.push_back(make_pair("X_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].x_history));
         vals.push_back(make_pair("Y_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].y_history));
         vals.push_back(make_pair("Z_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].z_history));
-        vals.push_back(make_pair("Time_list_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].time_list_dust));
         speed_list.push_back(Dusty_plasma_crystal.Dust_grain_list[i].calc_speed());
     };
-
+    vals.push_back(make_pair("Time_list", Dusty_plasma_crystal.time_list));
     vals.push_back(make_pair("Temperature_list", Dusty_plasma_crystal.temperature_history));
     vals.push_back(make_pair("Speed_list", speed_list));
 
@@ -501,8 +485,6 @@ int main(){
     write_csv(filename_end, vals_end);
     std::cout << "FILENAME FINAL:" << filename_end << std::endl;
 
-    /////////////
-    
     std::cout << "done" << std::endl;
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();

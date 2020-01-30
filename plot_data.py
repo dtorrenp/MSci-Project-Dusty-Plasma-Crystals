@@ -41,7 +41,7 @@ colour_list = ["red","green","blue","orange","black","brown"]
 
 status = "Compile"#input("Compile or Run?")
 load = "no"
-boundry = "Finite"#input("Periodic or Finite?")
+boundry = "Periodic"#input("Periodic or Finite?")
 standard_plots = "yes"
 layer_plots = "no"#input("layers?")
 
@@ -107,10 +107,10 @@ if str(os.path.exists(NEW_FOLDER)) == "False":
 
 #%%
 data = pd.read_csv(FILENAME)
-dust_grain_max = int((len(data.columns))/4)
-last_time_val = data["Time_list_0"].iloc[-1]
-y_z_se = [z_se/lambda_D]*len(data["Time_list_0"])
-temp_ion = [T_i]*len(data["Time_list_0"])
+dust_grain_max = int( (len(data.columns))/3 - 1)
+last_time_val = data["Time_list"].iloc[-1]
+y_z_se = [z_se/lambda_D]*len(data["Time_list"])
+temp_ion = [T_i]*len(data["Time_list"])
 
 #%%
 if standard_plots == "yes":
@@ -119,63 +119,63 @@ if standard_plots == "yes":
          plt.figure()
          plt.title("test - x")
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
-            plt.plot(data["Time_list_" +str(i)], data["X_" + str(i)])
-            plt.plot(data["Time_list_" +str(i)][0], data["X_" + str(i)][0],"+" ,color='blue')
-            plt.plot(data["Time_list_" +str(i)].iloc[last_val_index], data["X_" + str(i)].iloc[last_val_index],"+" ,color='red')
+            last_val_index = np.where(data["Time_list"] == last_time_val)
+            plt.plot(data["Time_list"], data["X_" + str(i)])
+            plt.plot(data["Time_list"][0], data["X_" + str(i)][0],"+" ,color='blue')
+            plt.plot(data["Time_list"].iloc[last_val_index], data["X_" + str(i)].iloc[last_val_index],"+" ,color='red')
          plt.xlabel("Time")
          plt.ylabel("x/lambda_D")
          plt.grid()
          plt.ylim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
-         plt.savefig(NEW_FOLDER + "/Periodic_x_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Periodic_x_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if y_plot == "yes":
          plt.figure()
          plt.title("test - y")
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
-            plt.plot(data["Time_list_" +str(i)], data["Y_" + str(i)])
-            plt.plot(data["Time_list_" +str(i)][0], data["Y_" + str(i)][0],"+" ,color='blue')
-            plt.plot(data["Time_list_" +str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
+            last_val_index = np.where(data["Time_list"] == last_time_val)
+            plt.plot(data["Time_list"], data["Y_" + str(i)])
+            plt.plot(data["Time_list"][0], data["Y_" + str(i)][0],"+" ,color='blue')
+            plt.plot(data["Time_list"].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
          plt.xlabel("Time")
          plt.ylabel("y/lambda_D")
          plt.grid()
          plt.ylim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
-         plt.savefig(NEW_FOLDER + "/Periodic_y_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Periodic_y_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if z_plot == "yes":
          plt.figure()
          plt.title("test - z")
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
-            plt.plot(data["Time_list_" +str(i)], data["Z_" + str(i)])
-            plt.plot(data["Time_list_" +str(i)][0], data["Z_" + str(i)][0],"+" ,color='blue')
-            plt.plot(data["Time_list_" +str(i)].iloc[last_val_index], data["Z_" + str(i)].iloc[last_val_index],"+" ,color='red')
+            last_val_index = np.where(data["Time_list"] == last_time_val)
+            plt.plot(data["Time_list"], data["Z_" + str(i)])
+            plt.plot(data["Time_list"][0], data["Z_" + str(i)][0],"+" ,color='blue')
+            plt.plot(data["Time_list"].iloc[last_val_index], data["Z_" + str(i)].iloc[last_val_index],"+" ,color='red')
          plt.xlabel("Time")
          plt.ylabel("z/lambda_D")
-         plt.plot(data["Time_list_0"],y_z_se, "--", color = "black")
+         plt.plot(data["Time_list"],y_z_se, "--", color = "black")
          plt.ylim(0,container_height/lambda_D)
          plt.grid()
-         plt.savefig(NEW_FOLDER + "/Periodic_z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Periodic_z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if final_pos_plot == "yes":
          plt.figure()
          plt.title("Final Positions")
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+            last_val_index = np.where(data["Time_list"] == last_time_val)
             plt.plot(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
          plt.xlabel("x/lambda_D")
          plt.ylabel("y/lambda_D")
          plt.grid()
          plt.xlim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
          plt.ylim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
-         plt.savefig(NEW_FOLDER + "/Periodic_final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Periodic_final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if motion_plot == "yes":   
          plt.figure()
          plt.title("Motion")
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)].values == last_time_val)
+            last_val_index = np.where(data["Time_list"].values == last_time_val)
             plt.plot(data["X_" + str(i)],data["Y_" + str(i)])
             plt.plot(data["X_" + str(i)][0], data["Y_" + str(i)][0],"+" ,color='blue')
             plt.plot(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
@@ -188,13 +188,13 @@ if standard_plots == "yes":
       if temp_plot == "yes":
          plt.figure()
          plt.title("Temperature")
-         plt.plot(data["Time_list_0"],data["Temperature_list"])
-         plt.plot(data["Time_list_0"],temp_ion, "--", color = "black")
+         plt.plot(data["Time_list"],data["Temperature_list"])
+         plt.plot(data["Time_list"],temp_ion, "--", color = "black")
          plt.yscale("log")
          plt.xlabel("Time")
          plt.ylabel("Temperature(K)")
          plt.grid()
-         plt.savefig(NEW_FOLDER + "/Periodic_Temperature_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Periodic_Temperature_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if speed_plot == "yes":
          plt.figure()
@@ -202,7 +202,7 @@ if standard_plots == "yes":
          plt.hist(data["Speed_list"].dropna(), bins = int(dust_grain_max/hist_div_val)  )
          plt.ylabel("Speed")
          plt.grid()
-         plt.savefig(NEW_FOLDER + "/Periodic_Speed_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Periodic_Speed_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
    else:
       theta = np.linspace(0, 2*np.pi, 100)
@@ -215,50 +215,50 @@ if standard_plots == "yes":
          plt.figure()
          plt.title("test - x")
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
-            plt.plot(data["Time_list_" +str(i)], data["X_" + str(i)])
-            plt.plot(data["Time_list_" +str(i)][0], data["X_" + str(i)][0],"+" ,color='blue')
-            plt.plot(data["Time_list_" +str(i)].iloc[last_val_index], data["X_" + str(i)].iloc[last_val_index],"+" ,color='red')
+            last_val_index = np.where(data["Time_list"] == last_time_val)
+            plt.plot(data["Time_list"], data["X_" + str(i)])
+            plt.plot(data["Time_list"][0], data["X_" + str(i)][0],"+" ,color='blue')
+            plt.plot(data["Time_list"].iloc[last_val_index], data["X_" + str(i)].iloc[last_val_index],"+" ,color='red')
          plt.xlabel("Time")
          plt.ylabel("x/lambda_D")
          plt.grid()
          plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
-         plt.savefig(NEW_FOLDER + "/Finite_x_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Finite_x_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if y_plot == "yes":
          plt.figure()
          plt.title("test - y")
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
-            plt.plot(data["Time_list_" +str(i)], data["Y_" + str(i)])
-            plt.plot(data["Time_list_" +str(i)][0], data["Y_" + str(i)][0],"+" ,color='blue')
-            plt.plot(data["Time_list_" +str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
+            last_val_index = np.where(data["Time_list"] == last_time_val)
+            plt.plot(data["Time_list"], data["Y_" + str(i)])
+            plt.plot(data["Time_list"][0], data["Y_" + str(i)][0],"+" ,color='blue')
+            plt.plot(data["Time_list"].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
          plt.xlabel("Time")
          plt.ylabel("y/lambda_D")
          plt.grid()
          plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
-         plt.savefig(NEW_FOLDER + "/Finite_y_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Finite_y_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if z_plot == "yes":
          plt.figure()
          plt.title("test - z")
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
-            plt.plot(data["Time_list_" +str(i)], data["Z_" + str(i)])
-            plt.plot(data["Time_list_" +str(i)][0], data["Z_" + str(i)][0],"+" ,color='blue')
-            plt.plot(data["Time_list_" +str(i)].iloc[last_val_index], data["Z_" + str(i)].iloc[last_val_index],"+" ,color='red')
+            last_val_index = np.where(data["Time_list"] == last_time_val)
+            plt.plot(data["Time_list"], data["Z_" + str(i)])
+            plt.plot(data["Time_list"][0], data["Z_" + str(i)][0],"+" ,color='blue')
+            plt.plot(data["Time_list"].iloc[last_val_index], data["Z_" + str(i)].iloc[last_val_index],"+" ,color='red')
          plt.xlabel("Time")
          plt.ylabel("z/lambda_D")
-         plt.plot(data["Time_list_0"],y_z_se, "--", color = "black")
+         plt.plot(data["Time_list"],y_z_se, "--", color = "black")
          plt.ylim(0,container_height/lambda_D)
          plt.grid()
-         plt.savefig(NEW_FOLDER + "/Finite_z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Finite_z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if final_pos_plot == "yes":
          plt.figure()
          plt.title("Final Positions")
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+            last_val_index = np.where(data["Time_list"] == last_time_val)
             plt.plot(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],"+" ,color='red')
          plt.xlabel("x/lambda_D")
          plt.ylabel("y/lambda_D")
@@ -267,18 +267,18 @@ if standard_plots == "yes":
          plt.grid()
          plt.xlim(-container_radius/lambda_D,container_radius/lambda_D)
          plt.ylim(-container_radius/lambda_D,container_radius/lambda_D)
-         plt.savefig(NEW_FOLDER + "/Finite_final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Finite_final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if temp_plot == "yes":
          plt.figure()
          plt.title("Temperature")
-         plt.plot(data["Time_list_0"],data["Temperature_list"])
-         plt.plot(data["Time_list_0"],temp_ion, "--", color = "black")
+         plt.plot(data["Time_list"],data["Temperature_list"])
+         plt.plot(data["Time_list"],temp_ion, "--", color = "black")
          plt.yscale("log")
          plt.xlabel("Time")
          plt.ylabel("Temperature(K)")
          plt.grid()
-         plt.savefig(NEW_FOLDER + "/Finite_Temperature_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Finite_Temperature_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if speed_plot == "yes":
          plt.figure()
@@ -286,7 +286,7 @@ if standard_plots == "yes":
          plt.hist(data["Speed_list"].dropna(), bins = int(dust_grain_max/hist_div_val)  )
          plt.ylabel("Speed")
          plt.grid()
-         plt.savefig(NEW_FOLDER + "/Finite_Speed_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+         plt.savefig(NEW_FOLDER + "/Finite_Speed_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
 if layer_plots == "yes":
    layers = [0.0,9.5,10.25,11.5]
@@ -298,7 +298,7 @@ if layer_plots == "yes":
          layer_x = []
          layer_y = []
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+            last_val_index = np.where(data["Time_list"] == last_time_val)
             if ( (data["Z_" + str(i)].values[last_val_index][0] >= layers[v] ) and (data["Z_" + str(i)].values[last_val_index][0] <= layers[v+1])):
                #print(data["X_" + str(i)].iloc[last_val_index])
                layer_x.append(data["X_" + str(i)].iloc[last_val_index].to_numpy())
@@ -319,7 +319,7 @@ if layer_plots == "yes":
             plt.xlabel("x/lambda_D")
             plt.ylabel("y/lambda_D")
             voronoi_plot_2d(vor, ax = ax_v)
-            plt.savefig(NEW_FOLDER + "/Periodic_layers" + str(v) + "Voronoi" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+            plt.savefig(NEW_FOLDER + "/Periodic_layers" + str(v) + "Voronoi" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
          if delaunay_plot == "yes":
             tri = Delaunay(points)
@@ -329,7 +329,7 @@ if layer_plots == "yes":
             plt.ylabel("y/lambda_D")
             plt.triplot(points[:,0], points[:,1], tri.simplices)
             plt.plot(points[:,0], points[:,1], 'o')
-            plt.savefig(NEW_FOLDER + "/Periodic_layers" + str(v) + "Delaunay_Triangulation" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+            plt.savefig(NEW_FOLDER + "/Periodic_layers" + str(v) + "Delaunay_Triangulation" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
          if g_plot == "yes":
             pair_correlation_x_data = layer_row[0]
@@ -369,7 +369,7 @@ if layer_plots == "yes":
             plt.ylabel("g")
             plt.plot(radial_values,g)
             plt.grid()
-            plt.savefig(NEW_FOLDER + "/Periodic_layers" + str(v) + "Pair_correlation" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+            plt.savefig(NEW_FOLDER + "/Periodic_layers" + str(v) + "Pair_correlation" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
          if layer_final_pos_plot == "yes":
             plt.figure()
@@ -380,13 +380,13 @@ if layer_plots == "yes":
             plt.grid()
             plt.xlim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
             plt.ylim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
-            plt.savefig(NEW_FOLDER + "/Periodic_layers" + str(v) + "final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+            plt.savefig(NEW_FOLDER + "/Periodic_layers" + str(v) + "final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
       
       if threeD_plot == "yes":
          fig = plt.figure()
          ax = fig.add_subplot(111, projection='3d')
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+            last_val_index = np.where(data["Time_list"] == last_time_val)
             for k in np.arange(len(layers) - 1):
                if ( (data["Z_" + str(i)].values[last_val_index][0] >= layers[k] ) and (data["Z_" + str(i)].values[last_val_index][0] <= layers[k+1])):
                   colour_layer = colour_list[v]
@@ -410,7 +410,7 @@ if layer_plots == "yes":
          layer_x = []
          layer_y = []
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+            last_val_index = np.where(data["Time_list"] == last_time_val)
             if ( (data["Z_" + str(i)].values[last_val_index][0] >= layers[v] ) and (data["Z_" + str(i)].values[last_val_index][0] <= layers[v+1])):
                #print(data["X_" + str(i)].iloc[last_val_index])
                layer_x.append(data["X_" + str(i)].iloc[last_val_index].to_numpy())
@@ -431,7 +431,7 @@ if layer_plots == "yes":
             plt.xlabel("x/lambda_D")
             plt.ylabel("y/lambda_D")
             voronoi_plot_2d(vor, ax = ax_v)
-            plt.savefig(NEW_FOLDER + "/Finite_layers" + str(v) + "Voronoi" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+            plt.savefig(NEW_FOLDER + "/Finite_layers" + str(v) + "Voronoi" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
          if delaunay_plot == "yes":
             tri = Delaunay(points)
@@ -441,7 +441,7 @@ if layer_plots == "yes":
             plt.ylabel("y/lambda_D")
             plt.triplot(points[:,0], points[:,1], tri.simplices)
             plt.plot(points[:,0], points[:,1], 'o')
-            plt.savefig(NEW_FOLDER + "/Finite_layers" + str(v) + "Delaunay_Triangulation" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+            plt.savefig(NEW_FOLDER + "/Finite_layers" + str(v) + "Delaunay_Triangulation" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
             
          if g_plot == "yes":
             pair_correlation_x_data = layer_row[0]
@@ -481,7 +481,7 @@ if layer_plots == "yes":
             plt.ylabel("g")
             plt.plot(radial_values,g)
             plt.grid()
-            plt.savefig(NEW_FOLDER + "/Finite_layers" + str(v) + "Pair_correlation" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+            plt.savefig(NEW_FOLDER + "/Finite_layers" + str(v) + "Pair_correlation" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
          if layer_final_pos_plot == "yes":
             plt.figure()
@@ -492,13 +492,13 @@ if layer_plots == "yes":
             plt.grid()
             plt.xlim(-container_radius/(lambda_D),container_radius/(lambda_D))
             plt.ylim(-container_radius/(lambda_D),container_radius/(lambda_D))
-            plt.savefig(NEW_FOLDER + "/Finite_layers" + str(v) + "final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list_0"])) + ".png")
+            plt.savefig(NEW_FOLDER + "/Finite_layers" + str(v) + "final_pos_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if threeD_plot == "yes":
          fig = plt.figure()
          ax = fig.add_subplot(111, projection='3d')
          for i in np.arange(dust_grain_max):
-            last_val_index = np.where(data["Time_list_" + str(i)] == last_time_val)
+            last_val_index = np.where(data["Time_list"] == last_time_val)
             for k in np.arange(len(layers) - 1):
                if ( (data["Z_" + str(i)].values[last_val_index][0] >= layers[k] ) and (data["Z_" + str(i)].values[last_val_index][0] <= layers[k+1])):
                   colour_layer = colour_list[k]
@@ -512,7 +512,7 @@ if layer_plots == "yes":
 
    if anim == "yes":
       for n in np.arange(len(layers) - 1):
-         frames = len(data["Time_list_0"])
+         frames = len(data["Time_list"])
          speed_mul = 100
          size_mul = 1.2
 
@@ -541,7 +541,7 @@ if layer_plots == "yes":
                if ( (data["Z_" + str(i)].values[last_val_index][0] >= layer_bottom ) and (data["Z_" + str(i)].values[last_val_index][0] <= layer_top)):
                   x.append(data["X_" + str(i)].iloc[v])
                   y.append(data["Y_" + str(i)].iloc[v])
-            time = data["Time_list_" + str(0)].iloc[v]
+            time = data["Time_list"].iloc[v]
             return [x,y,time]
 
          def init():
