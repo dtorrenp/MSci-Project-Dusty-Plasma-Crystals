@@ -74,8 +74,8 @@ const double v_B = pow((k_b*T_e/m_i),0.5); //thermal velocity of electrons
 const double v_Tn = pow((k_b*T_i/m_n),0.5); //thermal velocity of neutrals
 const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn; //neutral drag coefficient
 const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0; //ion drag coefficient
-const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
-const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i);
+const double therm_coeff = sqrt(2*k_b*T_i*alpha_n); //neutron Brownian kick coefficient
+const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i); //ion Brownian kick coefficient
 
 //make functions for element-wise multiplication and addition of vectors
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
