@@ -39,11 +39,11 @@ hist_div_val = 4 #larger less bins, smaller more bins
 colour_list = ["red","green","blue","orange","black","brown"]
 #%%
 
-status = "Compile"#input("Compile or Run?")
+status = "Run"#input("Compile or Run?")
 load = "no"
 boundry = "Periodic"#input("Periodic or Finite?")
-standard_plots = "yes"
-layer_plots = "no"#input("layers?")
+standard_plots = "no"
+layer_plots = "yes"#input("layers?")
 
 x_plot = "yes"
 y_plot = "yes"
@@ -53,12 +53,12 @@ motion_plot = "yes"
 temp_plot = "yes"
 speed_plot = "yes"
 
-voronoi_plot = "no"
-delaunay_plot = "no"
-g_plot = "no"
-layer_final_pos_plot = "no"
+voronoi_plot = "yes"
+delaunay_plot = "yes"
+g_plot = "yes"
+layer_final_pos_plot = "yes"
 threeD_plot = "no"#doesnt work atm
-anim = "yes"
+anim = "no"#doesnt work atm
 
 if status == "Compile":
    if boundry == "Periodic":
@@ -289,7 +289,7 @@ if standard_plots == "yes":
          plt.savefig(NEW_FOLDER + "/Finite_Speed_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
 if layer_plots == "yes":
-   layers = [0.0,9.5,10.25,11.5]
+   layers = [0.0,9.9,11]
    layer_data = []
 
    if boundry == "Periodic":
@@ -559,6 +559,6 @@ if layer_plots == "yes":
             return [dust_points[0],text]
          
          ani = animation.FuncAnimation(fig, animate,interval=10, blit=True, init_func=init, frames = round(frames/speed_mul), fargs = [layers[n],layers[n+1]])
-         ani.save("Animation layer: " + str(v),fps=30) #save command
+         #ani.save("Animation layer: " + str(v),fps=30) #save command
          plt.close()
 plt.show()

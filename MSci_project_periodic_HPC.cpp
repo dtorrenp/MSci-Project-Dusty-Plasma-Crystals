@@ -14,8 +14,8 @@
 
 //CRITICAL VALUES
 const int dust_grain_max_input = 100; //dust grain max number
-const double dt_a = 1.0e-4;
-const double time_limit = 1.0e-1;
+const double dt_a = 1.0e-5;
+const double time_limit = 1.0;
 const double frame_req = 5;
 
 //CONSTANTS TO FUCK ABOUT WITH
