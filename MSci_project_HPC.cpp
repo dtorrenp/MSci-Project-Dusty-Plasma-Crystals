@@ -196,6 +196,58 @@ class Dust_Container{
             create_dust_grains();
     } 
 
+    // Y is an array of discretised Y(z) arrays at various t
+    std::vector<std::vector<double>> produce_Y_0{
+        return Y_0;
+    }
+
+    // u = v_i/v_B
+    std::vector<double> produce_u_0{
+        return u_0;
+    }
+
+    // Y_bar is time-averaged Y(z,t) over time period
+    std::vector<double> produce_Y_bar{
+        return Y_bar;
+    }
+
+    std::vector<double> produce_u_new{
+        return u_new;
+
+    }
+
+    std::vector<std::vector<double>> produce_Y_new{
+        return Y_new;
+    }
+
+    double produce_Y_differennce{
+        return Y_difference;
+    }
+
+    void find_Y{
+        std::vector<std::vector<double>> Y;
+        std::vector<double> u;
+        std::vector<double> Y_bar;
+        std::vector<double> u_new;
+        std::vector<double> Y_new;
+        std::vector<double> Y_bar_temp;
+        double Y_difference;
+
+        Y = produce_Y_0();
+        u = produce_u_0();
+        Y_bar = produce_Y_bar();
+
+        while(Y_difference > Y_epsilon){
+            Y_bar_temp = Y_bar;
+            u_new = produce_u_new();
+            Y_new = produce_Y_new();
+            Y_bar = produce Y_bar();
+            Y_difference = produce_Y_difference();
+        }
+
+    }
+
+
     double f_x_OML(double x_n){
         return sqrt(beta)*(1-x_n/beta) -exp(x_n);
     }
