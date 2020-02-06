@@ -26,7 +26,6 @@ const double Z = 1; //ion atomic number
 const double Z_n = 18; //neutrals atomic number (Ar)
 const double grain_R = 7*1e-6; //dust grain radius
 const double dust_grain_density = 1.49*1e3; //dust density
-const double phi_wall_z = -100.0; //vertical wall potential [volts]
 const double phi_wall_r = -1000.0; //radial wall potential [volts]
 const double init_speed = 1e-5;
 
@@ -54,14 +53,22 @@ const double container_radius = 25.0*lambda_D;//set radius of contianer ie wall 
 const double coulomb_limit = 5;
 
 //related to finding the charge of the dust grains
+const double T = 1/(13.6*1e6);
+const double d_T = T/100;
+const double omega = (2*M_PI)/T;//TAKEN FROM NITTER PAPER 13.6M Hz
+const double Y_DC = -50.0;//NITTER
+const double phi_wall_z = Y_DC; //TRY THIS FOR NOW SEE HOW IT WORKS
+const double Y_ref = 50.0;//NITTER
 const double dz = lambda_D/1000;
+const double n_s = n_i0*exp(0.5);
+const double p_d = (dust_grain_max_input*m_D)/(M_PI*pow(container_radius,2)*drop_height);
 const double root = dz/10;//preciscion of root finding method used to get dust charge
+const double Y_epsilon = 1e-2;//VARY THIS
 
 const double lower_lim_z = 7.0*lambda_D;
 const double upper_lim_z = 15.0*lambda_D;
 const double a_0_OML = -0.5;
 const double a_0_Sheath = -2.5;//intial guess for halley's method
-
 
 //const double container_dust_dist_creation = sqrt(container_radius/(2*lambda_D));
 const double z_se = 10.0*lambda_D; //distance of vertical sheath from bottom of container
@@ -75,10 +82,30 @@ const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0;
 const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
 const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i);
 //make functions for element-wise multiplication and addition of vectors
+
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
     std::vector<double> c;
     for(int i=0; i<a.size(); i++){
         c.push_back(a[i]*cst);
+    }
+    return c;
+}
+
+std::vector<double> element_add_cst(const std::vector<double>& a,double cst){
+    std::vector<double> c;
+    for(int i=0; i<a.size(); i++){
+        c.push_back(a[i] + cst);
+    }
+    return c;
+}
+
+
+std::vector<std::vector<double>> special_element_mul(const std::vector<std::vector<double>>& a,double cst){
+    std::vector<std::vector<double>> c;
+    for(int i=0; i<a.size(); i++){
+        for(int v=0; v<a[0].size(); v++){
+            c[i].push_back(a[i][v]*cst);
+        }
     }
     return c;
 }
@@ -184,6 +211,9 @@ class Dust_Container{
     public:
 	std::vector<double> time_list;
     std::map<double, double> charge_list;
+    std::vector<double> z_list;
+    std::vector<double> T_list;
+    std::vector<std::map<double,double>> time_potential_list;
     std::vector<Dust_grain> Dust_grain_list;
     std::vector<std::pair<Dust_grain&,Dust_grain&>> combs_list;
     double v_squared_sum;
@@ -192,62 +222,151 @@ class Dust_Container{
 
 	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0},v_squared_sum{0}
     {
+            produce_z_vals(dz, lower_lim_z,upper_lim_z);
+            produce_T_vals(d_T,T);
+            find_Y(dz);
             calc_dust_grain_charges(dz, lower_lim_z,upper_lim_z);
             create_dust_grains();
     } 
 
-    // Y is an array of discretised Y(z) arrays at various t
-    std::vector<std::vector<double>> produce_Y_0{
-        return Y_0;
+    //CALC Y DISTRIBUTION USING NITTER 
+    void produce_z_vals(double d_z, double low_z, double high_z){
+        for(double i = low_z; i < high_z; i+= d_z){
+            z_list.push_back(i);
+        }
     }
 
-    // u = v_i/v_B
-    std::vector<double> produce_u_0{
+    void produce_T_vals(double d_T, double T){
+        for(double i = 0; i < T; i+= d_T){
+            T_list.push_back(i);
+        }
+    }
+
+    // Y is an array of discretised Y(z) arrays at various t
+    std::vector<std::vector<double>> produce_Y_0(){
+        //rows are for a given pos z and inside is for a range of t values
+        std::vector<std::vector<double>> Y_0; 
+        std::vector<double> Y_0_row;
+        for(int i = 0; i < T_list.size() ; i+= 1){
+            for(int v = 0; v < z_list.size() ; v += 1){
+                Y_0_row.push_back(Y_DC + Y_ref*sin(omega*T_list[i]));
+            Y_0.push_back(Y_0_row);
+            }
+        }
+        return Y_0; 
+    }
+
+    std::vector<double> produce_u_0(){
+        std::vector<double> u_0;
+        for(int v = 0; v < z_list.size() ; v += 1){
+            u_0.push_back(-1);
+        }
         return u_0;
     }
 
     // Y_bar is time-averaged Y(z,t) over time period
-    std::vector<double> produce_Y_bar{
+    std::vector<double> produce_Y_bar(std::vector<std::vector<double>> Y){
+        std::vector<double> Y_bar;
+        for(int i = 0; i < T_list.size() ; i+= 1){
+            for(int v = 0; v < z_list.size() ; v += 1){
+                Y_bar[v] += Y[i][v];
+            }
+        }
         return Y_bar;
     }
 
-    std::vector<double> produce_u_new{
-        return u_new;
-
+    std::vector<double>f_der_u_new(std::vector<double> Y_bar, std::vector<double> u_0, double h){
+        std::vector<double> f; 
+        for(int v = 1; v < z_list.size() - 1 ; v += 1){//NOTE SURE ABOUT THE LIMITS
+            //BOUNDRY CONDITIONS
+            f.push_back((-1/u_0[v])*(Y_bar[v+1] - Y_bar[v-1])/(2*h));
+        }
+        return f;
     }
 
-    std::vector<std::vector<double>> produce_Y_new{
+    std::vector<double> step_u_new(std::vector<double> Y_bar, std::vector<double> u_0, double h){
+        std::vector<double> u;
+        std::vector<double> k1 = element_mul(f_der_u_new(Y_bar,u_0,h),h);
+        std::vector<double> k2 = element_mul(f_der_u_new(element_add_cst(Y_bar,h/2),element_add(u_0,element_mul(k1,1/2)),h),h);//SHOULD THESE BE h or h/2???????
+        std::vector<double> k3 = element_mul(f_der_u_new(element_add_cst(Y_bar,h/2),element_add(u_0,element_mul(k2,1/2)),h),h);
+        std::vector<double> k4 = element_mul(f_der_u_new(element_add_cst(Y_bar,h),element_add(u_0,k3),h),h);
+        u = element_add(u_0,element_mul(element_add(element_add(element_add(k1,element_mul(k2,2.0)),element_mul(k3,2.0)),k4),1.0/6.0));
+        return u;
+    }
+
+    std::vector<double> produce_Q(std::vector<double> Y_row, double h){
+        std::vector<double> Q;
+        for(int v = 1; v < z_list.size() - 1 ; v += 1){
+            Q.push_back((Y_row[v+1] -2*Y_row[v] + Y_row[v-1])/pow(h,2));
+        }
+        return Q;
+    }
+
+    std::vector<std::vector<double>> f_der_Y_new(std::vector<double> Y_row, std::vector<double> Q, std::vector<double> u, double h){
+        std::vector<std::vector<double>> f;
+        std::vector<double> dY_dz;
+        std::vector<double> dQ_dz; 
+
+        for(int v = 1; v < z_list.size() - 1 ; v += 1){//NOT SURE ABOUT LIMITS???
+            dY_dz.push_back(Q[v]);
+            dQ_dz.push_back(exp(Y_row[v]) + 1/u[v] - p_d/(e_charge*n_s));
+        }
+        f.push_back(dY_dz);
+        f.push_back(dQ_dz);
+        return f;
+    }
+
+    std::vector<double> step_Y_new(std::vector<double> Y_row, std::vector<double> u, double h){
+        std::vector<double> Y_row_new;
+        std::vector<double> Q = produce_Q(Y_row,h);
+        std::vector<std::vector<double>> k1 = special_element_mul(f_der_Y_new(Y_row,Q,u,h),h);
+        std::vector<std::vector<double>> k2 = special_element_mul(f_der_Y_new(element_add(Y_row,element_mul(k1[0],1/2)), element_add(Q,element_mul(k1[1],1/2)),element_add_cst(u,h/2),h),h);//SHOULD THESE BE h or h/2???????
+        std::vector<std::vector<double>> k3 = special_element_mul(f_der_Y_new(element_add(Y_row,element_mul(k2[0],1/2)), element_add(Q,element_mul(k2[1],1/2)),element_add_cst(u,h/2),h),h);
+        std::vector<std::vector<double>> k4 = special_element_mul(f_der_Y_new(element_add(Y_row,k2[0]), element_add(Q,k2[1]),element_add_cst(u,h),h),h);
+        Y_row_new = element_add(Y_row,element_mul(element_add(element_add(element_add(k1[0],element_mul(k2[0],2.0)),element_mul(k3[0],2.0)),k4[0]),1.0/6.0));
+        return Y_row_new;
+    }
+
+    std::vector<std::vector<double>> produce_Y_new(std::vector<std::vector<double>> Y, std::vector<double> u, double h){
+        std::vector<std::vector<double>> Y_new;
+        for(int i = 0; i < T_list.size() ; i+= 1){
+            Y_new.push_back(step_Y_new(Y[i],u,h));
+        }
         return Y_new;
     }
 
-    double produce_Y_differennce{
-        return Y_difference;
+    double produce_Y_difference(std::vector<double> Y_bar_temp, std::vector<double> Y_bar){  
+        return v_abs(element_add(Y_bar_temp, element_mul(Y_bar,-1)));
     }
 
-    void find_Y{
+    void find_Y(double h){
         std::vector<std::vector<double>> Y;
         std::vector<double> u;
         std::vector<double> Y_bar;
-        std::vector<double> u_new;
-        std::vector<double> Y_new;
         std::vector<double> Y_bar_temp;
         double Y_difference;
 
         Y = produce_Y_0();
         u = produce_u_0();
-        Y_bar = produce_Y_bar();
+        Y_bar = produce_Y_bar(Y);
 
         while(Y_difference > Y_epsilon){
             Y_bar_temp = Y_bar;
-            u_new = produce_u_new();
-            Y_new = produce_Y_new();
-            Y_bar = produce Y_bar();
-            Y_difference = produce_Y_difference();
+            u = step_u_new(Y_bar,u,h);
+            Y = produce_Y_new(Y,u,h);
+            Y_bar = produce_Y_bar(Y);
+            Y_difference = produce_Y_difference(Y_bar_temp,Y_bar);
         }
 
+        for(int i = 0; i < T_list.size() ; i+= 1){
+            for(int v = 0; v < z_list.size(); v += 1){
+                time_potential_list[i].insert(std::pair<double,double> (z_list[v], Y[i][v]));
+            }
+        }
     }
 
-
+    //OML CALCULATION USING CAMERON
+    //OUTSIDE THE SHEATH
     double f_x_OML(double x_n){
         return sqrt(beta)*(1-x_n/beta) -exp(x_n);
     }
@@ -276,6 +395,7 @@ class Dust_Container{
         return W_0;
     }
 
+    //INSIDE THE SHEATH
     double f_x_Sheath(double x_n, double A, double B){
         return A*exp(B + x_n) - (2/(2*B - 1))*x_n - 1;
     }
@@ -319,7 +439,7 @@ class Dust_Container{
     }
     void calc_dust_grain_charges(double d_z, double low_z, double high_z){
         for(double i = low_z; i < high_z; i+= d_z){
-            charge_list.insert( std::pair<double,double> (i, OML_charge(i)) );
+            charge_list.insert( std::pair<double,double> (i, OML_charge(i)));
         }
         std::cout << charge_list.size() << std::endl;
     }
