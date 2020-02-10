@@ -65,8 +65,8 @@ alpha = ((epsilon_0*k_b*T_e)/(n_i0*np.exp(0.5)*(e_charge**2)))**0.5*n_n0*sigma
 #alpha_them = ((epsilon_0*k_b*T_e)/(6.1e15*np.exp(0.5)*(e_charge**2)))**0.5*3.3e21*sigma
 #print(alpha,alpha_them)
 #%%
-sheath = "RF"#RF
-collision = "collisional"#collisionless
+sheath = "RF" #RF
+collision = "collisionless" #collisionless
 
 #%%
 
@@ -98,8 +98,9 @@ def produce_Y_0_RF():
     Y_0 = []
     for i in np.arange(len(T_list)):
         Y_0_row = []
-        for v in np.arange(len(z_list)):
+        for v in np.arange(len(z_list)-1):
             Y_0_row.append(Y_DC + Y_ref*np.sin(omega*T_list[i]))
+        Y_0_row.append(0) #boundary condition
         Y_0.append(Y_0_row)
     return np.asarray(Y_0) 
 
@@ -127,35 +128,44 @@ def produce_Q_RF(Y_t_z,h):
         Q_row = []
         for v in np.arange(len(z_list)-1):
             Q_row.append((Y_t_z[i][v+1]-Y_t_z[i][v])/h)
-            if collision == "collisionless":
-                Q_row.append(0)
-            else:
-                Q_row.append(alpha)
+        if collision == "collisionless":
+            Q_row.append(0)
+        else:
+            Q_row.append(alpha)
         Q.append(Q_row)
+    print ("HEllo", len(Q), len(Q[0]))
     return np.asarray(Q)
 
 def produce_u_0_collisionless(Y_z):
     u_0 = []
-    for v in np.arange(len(z_list)):
+    #print ("hey")
+    #rint (Y_z)
+    for v in np.arange(len(z_list)-1):
         u_0.append(-(1-2*Y_z[v])**0.5)
+    u_0.append(-1)
+    #print (u_0)
+    #print (len(u_0))
     return np.asarray(u_0)
 
 def produce_u_0_collisional(Q):
     #print(Q)
     u_0 = []
-    for v in np.arange(len(z_list)):
+    for v in np.arange(len(z_list)-1):
         #print("hiiii")
         #print(np.exp(-2*alpha*v))
         #print( (1/alpha)*(Q[v]))
         u_0.append((np.exp(-2*alpha*v) + (1/alpha)*(Q[v]))**0.5)
+    u_0.append(-1)
     return np.asarray(u_0)
 
 def f_der(Y_row, Q, u,  h):
     f = []
     dY_dz = []
     dQ_dz = []
+    #print (u)
     for v in np.arange(len(z_list)):#NOT SURE ABOUT LIMITS???
         dY_dz.append(Q[v])
+        #print (np.exp(Y_row[v]), 1/u[v], p_d/(e_charge*n_s))
         dQ_dz.append(np.exp(Y_row[v]) + 1/u[v] - p_d/(e_charge*n_s))
     f.append(dY_dz)
     f.append(dQ_dz)
@@ -163,7 +173,9 @@ def f_der(Y_row, Q, u,  h):
 
 def step(Y_row, Q_row, u,  h):
     k1 = f_der(Y_row,Q_row,u,h)*h
-    k2 = f_der( Y_row + k1[0]*0.5, Q_row + k1[1]*0.5,u + h/2,h)*h#SHOULD THESE BE h or h/2???????
+    #print (k1, Y_row, Q_row, u)
+    #print (len(Q_row), len(k1[0]))
+    k2 = f_der(Y_row + k1[0]*0.5, Q_row + k1[1]*0.5,u + h/2,h)*h
     k3 = f_der( Y_row + k2[0]*0.5, Q_row+ k2[1]*0.5,u + h/2,h)*h
     k4 = f_der( Y_row + k3[0], Q_row+k3[1],u + h,h)*h
     a = np.asarray([Y_row,Q_row]) + (k1 + 2*k2 + 2*k3 + k4)/6.0
@@ -175,6 +187,7 @@ def produce_Y_Q_new_DC(Y_z,Q_z,u,h):
 def produce_Y_Q_new_RF(Y_z_t,Q_z_t,u,h):
     Y_new = []
     Q_new = []
+    #print (len(Y_z_t), len(Q_z_t), len(Y_z_t[0]), len(Q_z_t[0]))
     for i in np.arange(len(T_list)):
         b = step(Y_z_t[i],Q_z_t[i],u,h)
         Y_new.append(b[0])
@@ -191,16 +204,17 @@ def find_Y(h):
             Q = produce_Q_DC(Y,h)
         else:
             Y = produce_Y_0_RF()
-            print(Y)
+            #print(Y)
             Q = produce_Q_RF(Y,h)
             Y_bar = produce_Y_bar(Y)
 
         Y_difference = 2*Y_epsilon
         while(Y_difference > Y_epsilon):
-            print("hey")
+            #print("hey")
             if sheath == "DC":
                 Y_bar_temp = Y
                 u = produce_u_0_collisionless(Y)
+                #print (len(Q))
                 a = produce_Y_Q_new_DC(Y,Q,u,h)
                 Y = a[0]
                 Q = a[1]
@@ -212,7 +226,7 @@ def find_Y(h):
                 Y = a[0]
                 Q = a[1]
                 Y_bar = produce_Y_bar(Y)
-                Y_difference = produce_Y_difference(Y_bar_temp,Y)
+                Y_difference = produce_Y_difference(Y_bar_temp,Y_bar)
     else:
         if sheath == "DC":
             Y = produce_Y_0_DC()
@@ -240,7 +254,7 @@ def find_Y(h):
                 Y = a[0]
                 Q = a[1]
                 Y_bar = produce_Y_bar(Y)
-                Y_difference = produce_Y_difference(Y_bar_temp,Y)
+                Y_difference = produce_Y_difference(Y_bar_temp,Y_bar)
     return Y
 
 #%%
@@ -248,7 +262,7 @@ produce_z_vals(dz,low_z,high_z)
 produce_T_vals(dT,T)
 data = find_Y(dz)
 print("done")
-print(data)
+#print(data)
 
 plt.figure()
 plt.grid()
