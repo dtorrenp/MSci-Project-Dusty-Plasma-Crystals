@@ -49,7 +49,7 @@ container_radius = 25.0*lambda_D
 
 T = 1/(13.6*1e6)
 dT = T/3
-dz = lambda_D/100
+dz = lambda_D/10
 omega = (2*np.pi)/T#TAKEN FROM NITTER PAPER 13.6M Hz
 V_RF = 50
 low_z = 0
@@ -87,21 +87,27 @@ def collisionless():
         return V_DC
 
     def produce_Y_z_init(Y_Wall_DC):
-        Y_z_init=[Y_Wall_DC]
-        for v in np.arange(len(z_list) - 1):
-            Y_z_init.append(step_Y_z_init(Y_z_init[v]))
-        return Y_z_init
+        Y_z_init = []
+        for v in np.arange(len(z_list)):
+            Y_z_init.append(Y_Wall_DC *(z_list[v]/z_list[-1] - 1)**2)
+        return np.asarray(Y_z_init)
 
-    def step_Y_z_init(Y_z_0):
-        k1 = f_der_Y_z_init(Y_z_0)*dz
-        k2 = f_der_Y_z_init(Y_z_0 + k1/2)*dz
-        k3 = f_der_Y_z_init(Y_z_0 + k2/2)*dz
-        k4 = f_der_Y_z_init(Y_z_0 + k3)*dz
-        Y_z_1 = Y_z_0 + (k1 + 2*k2 + 2*k3 + k4)/6.0
-        return Y_z_1
+    # def produce_Y_z_init(Y_Wall_DC):
+    #     Y_z_init=[Y_Wall_DC]
+    #     for v in np.arange(len(z_list) - 1):
+    #         Y_z_init.append(step_Y_z_init(Y_z_init[v]))
+    #     return Y_z_init
 
-    def f_der_Y_z_init(Y_z_n):
-        return (2*(np.exp(Y_z_n) + (1-2*Y_z_n)**0.5 -2))**0.5
+    # def step_Y_z_init(Y_z_0):
+    #     k1 = f_der_Y_z_init(Y_z_0)*dz
+    #     k2 = f_der_Y_z_init(Y_z_0 + k1/2)*dz
+    #     k3 = f_der_Y_z_init(Y_z_0 + k2/2)*dz
+    #     k4 = f_der_Y_z_init(Y_z_0 + k3)*dz
+    #     Y_z_1 = Y_z_0 + (k1 + 2*k2 + 2*k3 + k4)/6.0
+    #     return Y_z_1
+
+    # def f_der_Y_z_init(Y_z_n):
+    #     return (2*(np.exp(Y_z_n) + (1-2*Y_z_n)**0.5 -2))**0.5
 
     def produce_Y_z_t(Y_DC,Q_init):
         Y_z_t=[]
@@ -160,21 +166,28 @@ def collisionless():
         return np.asarray([a,b])
     
     def produce_Y_DC_converge(Y_DC_z_init,Q_init):
-
+        print("1")
         a = produce_Y_z_t(Y_DC_z_init,Q_init)
+        print("2")
         Y_z_t_converge = a[0]
         Q_init_converge = a[1]
         Y_DC_converge = produce_Y_DC(Y_z_t_converge)
+        print("3")
         Y_difference = produce_Y_difference(0,Y_DC_converge)
+        print("4")
         reps = 0
         while(Y_difference > Y_DC_epsilon):
             reps+=1
+            print("5")
             Y_DC_temp = np.copy(Y_DC_converge)
             a = produce_Y_z_t(Y_DC_converge,Q_init_converge)
+            print("6")
             Y_z_t_converge = a[0]
             Q_init_converge = a[1]
             Y_DC_converge = produce_Y_DC(Y_z_t_converge)
+            print("7")
             Y_difference = produce_Y_difference(Y_DC_temp,Y_DC_converge)
+            print("8")
 
         return np.asarray([Y_z_t_converge,Y_DC_converge,Q_init_converge])
 
@@ -195,7 +208,9 @@ def collisionless():
     T_list = produce_T_vals()
     V_DC = produce_V_DC(V_RF)
     Y_z_init = produce_Y_z_init(V_DC)
-    Q_init = np.asarray([0.1]*len(T_list))
+    init_grad = ((Y_z_init[1]-Y_z_init[0])/dz)
+    print("init grad = ", init_grad)
+    Q_init = np.asarray([1e-3*init_grad]*len(T_list))
     results = produce_Y_DC_converge(Y_z_init,Q_init)
     Y_z_t = results[0]
     Y_DC_z = results[1]
@@ -244,21 +259,27 @@ def collisional():
         return V_DC
 
     def produce_Y_z_init(Y_Wall_DC):
-        Y_z_init=[Y_Wall_DC]
-        for v in np.arange(len(z_list) - 1):
-            Y_z_init.append(step_Y_z_init(Y_z_init[v]))
-        return Y_z_init
+        Y_z_init = []
+        for v in np.arange(len(z_list)):
+            Y_z_init.append(Y_Wall_DC *(z_list[v]/z_list[-1] - 1)**2)
+        return np.asarray(Y_z_init)
 
-    def step_Y_z_init(Y_z_0):
-        k1 = f_der_Y_z_init(Y_z_0)*dz
-        k2 = f_der_Y_z_init(Y_z_0 + k1/2)*dz
-        k3 = f_der_Y_z_init(Y_z_0 + k2/2)*dz
-        k4 = f_der_Y_z_init(Y_z_0 + k3)*dz
-        Y_z_1 = Y_z_0 + (k1 + 2*k2 + 2*k3 + k4)/6.0
-        return Y_z_1
+    # def produce_Y_z_init(Y_Wall_DC):
+    #     Y_z_init=[Y_Wall_DC]
+    #     for v in np.arange(len(z_list) - 1):
+    #         Y_z_init.append(step_Y_z_init(Y_z_init[v]))
+    #     return Y_z_init
 
-    def f_der_Y_z_init(Y_z_n):
-        return (2*(np.exp(Y_z_n) + (1-2*Y_z_n)**0.5 -2))**0.5
+    # def step_Y_z_init(Y_z_0):
+    #     k1 = f_der_Y_z_init(Y_z_0)*dz
+    #     k2 = f_der_Y_z_init(Y_z_0 + k1/2)*dz
+    #     k3 = f_der_Y_z_init(Y_z_0 + k2/2)*dz
+    #     k4 = f_der_Y_z_init(Y_z_0 + k3)*dz
+    #     Y_z_1 = Y_z_0 + (k1 + 2*k2 + 2*k3 + k4)/6.0
+    #     return Y_z_1
+
+    # def f_der_Y_z_init(Y_z_n):
+    #     return (2*(np.exp(Y_z_n) + (1-2*Y_z_n)**0.5 -2))**0.5
 
     #STEP 1 GET U
     def f_der_u(u_0,Q):
@@ -282,14 +303,15 @@ def collisional():
         return u
 
     def produce_u(Q_row,u_0):
-        #print("u_0 = ",u_0)
+        print("u_0 = ",u_0)
+        print("Q_row = ",Q_row)
         u = produce_u_z(Q_row,u_0)
-        #print("u[-1] + 1 = ",u[-1] + 1)
+        print("u[-1] + 1 = ",u[-1] + 1)
         while(u[-1] + 1 < 0):
-            #print(u[-1])
-            u_0 -= u_0*0.5
+            u_0 += u_0*0.5
             u = produce_u_z(Q_row,u_0)
-            #print("u[-1] + 1 = ",u[-1] + 1)
+            print("u_0 = ",u_0)
+            print("u[-1] + 1 = ",u[-1] + 1)
         #BISECTION
         a = u_0
         b = 2*u_0
@@ -306,7 +328,8 @@ def collisional():
             else:
                 b = c
             u_root_epsilon = np.abs(u_root_c)
-            #print("u root = ", u_root_epsilon)
+            #print("u = ",u)
+            print("u root = ", u_root_epsilon)
         return u
 
     #STEP 2 GET Y
@@ -318,10 +341,12 @@ def collisional():
             Q_init_val = Q_init[i]
             res = produce_Y_z(Y_init_val,Q_init_val,u)
             Q_last = res[1][-1]
-            while((Q_last - alpha) < Q_epsilon):
+            print("Q_last = ",Q_last)
+            while((Q_last - alpha) < 0):
                 Q_init_val += Q_init_val*0.5
                 res = produce_Y_z(Y_init_val,Q_init_val,u)
                 Q_last = res[1][-1]
+                print("Q_last = ",Q_last)
             a = Q_init_val
             b = Q_init_val/2
             Q_root_a = Q_last - alpha
@@ -337,7 +362,8 @@ def collisional():
                 else:
                     b = c
                 Q_root_epsilon = np.abs(Q_root_c)
-                #print("Q_root_epsilon = ",Q_root_epsilon)
+                print("Q_last = ",Q_last)
+                print("Q_root_epsilon = ",Q_root_epsilon)
             Q_init[i] = b
             results_final = produce_Y_z(Y_init_val,b,u)
             Y_z_t.append(results_final[0])
@@ -374,6 +400,7 @@ def collisional():
     def produce_Q_DC(Y_z):
         Q = []
         for v in np.arange(len(z_list)-1):
+            #print("Q = ",Q)
             Q.append((Y_z[v+1]-Y_z[v])/dz)
         Q.append(alpha)
         return np.asarray(Q)
@@ -393,29 +420,42 @@ def collisional():
 
     #REPEAT THAT SHIT
     def produce_Y_DC_converge(Y_DC_z_init,Q_init,u_init):
+        print("1")
         Q_row = produce_Q_DC(Y_DC_z_init)
+        print("2")
         u = produce_u(Q_row,u_init)
+        print("3")
         u_init = u[0]
         a = produce_Y_z_t(Y_DC_z_init[0],Q_init,u)
+        print("4")
         Y_z_t_converge = a[0]
         Q_z_t_converge = a[1]
         Q_init = Q_z_t_converge[:,0]
         Y_DC_converge = produce_Y_DC(Y_z_t_converge)
+        print("5")
         Q_DC_converge = produce_Y_DC(Q_z_t_converge)
+        print("6")
         Y_difference = produce_Y_difference(0,Y_DC_converge)
+        print("7")
         reps = 0
         while(Y_difference > Y_DC_epsilon):
+            print("8")
             reps+=1
             Y_DC_temp = np.copy(Y_DC_converge)
             u = produce_u(Q_DC_converge,u_init)
+            print("9")
             u_init = u[0]
             a = produce_Y_z_t(Y_DC_converge[0],Q_init,u)
+            print("10")
             Y_z_t_converge = a[0]
             Q_z_t_converge = a[1]
             Q_init = Q_z_t_converge[:,0]
+            print("11")
             Y_DC_converge = produce_Y_DC(Y_z_t_converge)
             Q_DC_converge = produce_Y_DC(Q_z_t_converge)
+            print("12")
             Y_difference = produce_Y_difference(Y_DC_temp,Y_DC_converge)
+            print("13")
             #print("Y_difference = ", Y_difference)
         return np.asarray([Y_z_t_converge,Y_DC_converge,Q_DC_converge])
 
@@ -423,8 +463,10 @@ def collisional():
     T_list = produce_T_vals()
     V_DC = produce_V_DC(V_RF)
     Y_z_init = produce_Y_z_init(V_DC)
-    Q_init = np.asarray([0.01]*len(T_list))
-    u_init = -1
+    init_grad = ((Y_z_init[1]-Y_z_init[0])/dz)
+    print("init grad = ", init_grad)
+    Q_init = np.asarray([1e-5*init_grad]*len(T_list))
+    u_init = -1*10
     results = produce_Y_DC_converge(Y_z_init,Q_init,u_init)
     Y_z_t = results[0]
     Y_DC_z = results[1]
@@ -467,172 +509,176 @@ def collisional():
     return [np.asarray(z_list),Y_DC_z]
 
 
-def collisionless_parabola():
-    def produce_V_DC(V_RF):
-        V_DC = 0.5*np.log(2*np.pi*m_e/m_i) - np.log(iv(0,V_RF))
-        return V_DC
+# def collisionless_parabola():
+#     def produce_V_DC(V_RF):
+#         V_DC = 0.5*np.log(2*np.pi*m_e/m_i) - np.log(iv(0,V_RF))
+#         return V_DC
 
-    def produce_Y_z_init(Y_Wall_DC):
-        Y_z_init = []
-        for v in np.arange(len(z_list)):
-            Y_z_init.append(Y_Wall_DC *(z_list[v]/z_list[-1] - 1)**2)
-        return np.asarray(Y_z_init)
+#     def produce_Y_z_init(Y_Wall_DC):
+#         Y_z_init = []
+#         for v in np.arange(len(z_list)):
+#             Y_z_init.append(Y_Wall_DC *(z_list[v]/z_list[-1] - 1)**2)
+#         return np.asarray(Y_z_init)
 
-    def produce_Y_z_t(Y_DC,Q_init):
-        Y_z_t=[]
-        #print("Y_DC = ",Y_DC)
-        for i in np.arange(len(T_list)):
-            Y_init_val = Y_DC[0] +  V_RF*np.sin(omega*T_list[i]) 
-            Q_init_val = Q_init[i]
-            #print("HOOOOOO")
-            res = produce_Y_z(Y_init_val,Q_init_val,Y_DC)
-            #print("HEEEEE")
-            Y_last = res[0][-1]
-            while(Y_last < Y_epsilon):
-                Q_init_val += Q_init_val*0.5
-                res = produce_Y_z(Y_init_val,Q_init_val,Y_DC)
-                Y_last = res[0][-1]
-                print("Y_last = ", Y_last)
-            #BISECTION
-            a = Q_init_val
-            b = Q_init_val/2
-            Y_last_a = Y_last
-            Y_last_epsilon = np.abs(Y_last)
-            Y_last_c = 0
-            while(Y_last_epsilon > Y_epsilon_bisection):
-                c = (a+b)/2
-                res = produce_Y_z(Y_init_val,c,Y_DC)
-                Y_last_c = res[0][-1]
-                if (Y_last_c*Y_last_a > 0):
-                    a = c
-                    Y_last_a = Y_last_c
-                else:
-                    b = c
-                Y_last_epsilon = np.abs(Y_last_c)
-                print("Y_last_epsilon = ", Y_last_epsilon)
-            Q_init[i] = b
-            Y_z_t.append(produce_Y_z(Y_init_val,b,Y_DC)[0])
-        return np.asarray([Y_z_t,Q_init])
+#     def produce_Y_z_t(Y_DC,Q_init):
+#         Y_z_t=[]
+#         #print("Y_DC = ",Y_DC)
+#         for i in np.arange(len(T_list)):
+#             Y_init_val = Y_DC[0] +  V_RF*np.sin(omega*T_list[i]) 
+#             Q_init_val = Q_init[i]
+#             #print("HOOOOOO")
+#             res = produce_Y_z(Y_init_val,Q_init_val,Y_DC)
+#             #print("HEEEEE")
+#             Y_last = res[0][-1]
+#             while(Y_last < Y_epsilon):
+#                 Q_init_val += Q_init_val*0.5
+#                 res = produce_Y_z(Y_init_val,Q_init_val,Y_DC)
+#                 Y_last = res[0][-1]
+#                 print("Y_last = ", Y_last)
+#             #BISECTION
+#             a = Q_init_val
+#             b = Q_init_val/2
+#             Y_last_a = Y_last
+#             Y_last_epsilon = np.abs(Y_last)
+#             Y_last_c = 0
+#             while(Y_last_epsilon > Y_epsilon_bisection):
+#                 c = (a+b)/2
+#                 res = produce_Y_z(Y_init_val,c,Y_DC)
+#                 Y_last_c = res[0][-1]
+#                 if (Y_last_c*Y_last_a > 0):
+#                     a = c
+#                     Y_last_a = Y_last_c
+#                 else:
+#                     b = c
+#                 Y_last_epsilon = np.abs(Y_last_c)
+#                 print("Y_last_epsilon = ", Y_last_epsilon)
+#             Q_init[i] = b
+#             Y_z_t.append(produce_Y_z(Y_init_val,b,Y_DC)[0])
+#         return np.asarray([Y_z_t,Q_init])
     
-    def produce_Y_z(Y_z_init,Q_z_init,Y_DC_vals):
-        Y_z = [Y_z_init]
-        Q_z = [Q_z_init]
-        for v in np.arange(len(z_list) - 1):
-            Y_DC_select = [Y_DC_vals[v],Y_DC_vals[v+1]]
-            #print("Q_z[v] = ",Q_z[v])
-            a = step_Y_z(Y_z[v],Q_z[v],Y_DC_select)
-            Y_z.append(a[0])
-            Q_z.append(a[1])
-        return np.asarray([Y_z,Q_z])
+#     def produce_Y_z(Y_z_init,Q_z_init,Y_DC_vals):
+#         Y_z = [Y_z_init]
+#         Q_z = [Q_z_init]
+#         for v in np.arange(len(z_list) - 1):
+#             Y_DC_select = [Y_DC_vals[v],Y_DC_vals[v+1]]
+#             #print("Q_z[v] = ",Q_z[v])
+#             a = step_Y_z(Y_z[v],Q_z[v],Y_DC_select)
+#             Y_z.append(a[0])
+#             Q_z.append(a[1])
+#         return np.asarray([Y_z,Q_z])
 
-    def step_Y_z(Y_z_0,Q_z_0,Y_DC_z):
-        #print("HO")
-        Y_DC_z_half = (Y_DC_z[1] + Y_DC_z[0])/2
-        k1 = f_der_Y_z(Y_z_0,Q_z_0, Y_DC_z[0])*dz
-        k2 = f_der_Y_z(Y_z_0 + k1[0]/2,Q_z_0 + k1[1]/2, Y_DC_z_half)*dz
-        k3 = f_der_Y_z(Y_z_0 + k2[0]/2,Q_z_0 + k2[1]/2, Y_DC_z_half)*dz
-        k4 = f_der_Y_z(Y_z_0 + k3[0],Q_z_0 + k3[1], Y_DC_z[1])*dz
-        Y_z_1 = Y_z_0 + (k1[0] + 2*k2[0] + 2*k3[0] + k4[0])/6.0
-        Q_z_1 = Q_z_0 + (k1[0] + 2*k2[0] + 2*k3[0] + k4[0])/6.0
-        return np.asarray([Y_z_1,Q_z_1])
+#     def step_Y_z(Y_z_0,Q_z_0,Y_DC_z):
+#         #print("HO")
+#         Y_DC_z_half = (Y_DC_z[1] + Y_DC_z[0])/2
+#         k1 = f_der_Y_z(Y_z_0,Q_z_0, Y_DC_z[0])*dz
+#         k2 = f_der_Y_z(Y_z_0 + k1[0]/2,Q_z_0 + k1[1]/2, Y_DC_z_half)*dz
+#         k3 = f_der_Y_z(Y_z_0 + k2[0]/2,Q_z_0 + k2[1]/2, Y_DC_z_half)*dz
+#         k4 = f_der_Y_z(Y_z_0 + k3[0],Q_z_0 + k3[1], Y_DC_z[1])*dz
+#         Y_z_1 = Y_z_0 + (k1[0] + 2*k2[0] + 2*k3[0] + k4[0])/6.0
+#         Q_z_1 = Q_z_0 + (k1[0] + 2*k2[0] + 2*k3[0] + k4[0])/6.0
+#         return np.asarray([Y_z_1,Q_z_1])
 
-    def f_der_Y_z(Y_z_n,Q_z_n,Y_DC_n):
-        a = Q_z_n
-        b = np.exp(Y_z_n) - (1-2*Y_DC_n)**(-0.5)
-        #print(Y_DC_n)
+#     def f_der_Y_z(Y_z_n,Q_z_n,Y_DC_n):
+#         a = Q_z_n
+#         b = np.exp(Y_z_n) - (1-2*Y_DC_n)**(-0.5)
+#         #print(Y_DC_n)
 
-        #print("dQ/dx = ",np.exp(Y_z_n), - (1-2*Y_DC_n)**(-0.5))
-        #print("dY/dx = ",a)
-        #print("dQ/dx = ",b)
-        return np.asarray([a,b])
+#         #print("dQ/dx = ",np.exp(Y_z_n), - (1-2*Y_DC_n)**(-0.5))
+#         #print("dY/dx = ",a)
+#         #print("dQ/dx = ",b)
+#         return np.asarray([a,b])
     
-    def produce_Y_DC_converge(Y_DC_z_init,Q_init):
-        #print("YEET")
-        a = produce_Y_z_t(Y_DC_z_init,Q_init)
-        Y_z_t_converge = a[0]
-        Q_init_converge = a[1]
-        Y_DC_converge = produce_Y_DC(Y_z_t_converge)
-        Y_difference = produce_Y_difference(0,Y_DC_converge)
-        #print("YEET")
-        reps = 0
-        while(Y_difference > Y_DC_epsilon):
-            reps+=1
-            #print("LANGUAGE")
-            Y_DC_temp = np.copy(Y_DC_converge)
-            a = produce_Y_z_t(Y_DC_converge,Q_init_converge)
-            Y_z_t_converge = a[0]
-            Q_init_converge = a[1]
-            Y_DC_converge = produce_Y_DC(Y_z_t_converge)
-            Y_difference = produce_Y_difference(Y_DC_temp,Y_DC_converge)
-        return np.asarray([Y_z_t_converge,Y_DC_converge,Q_init_converge])
+#     def produce_Y_DC_converge(Y_DC_z_init,Q_init):
+#         #print("YEET")
+#         a = produce_Y_z_t(Y_DC_z_init,Q_init)
+#         Y_z_t_converge = a[0]
+#         Q_init_converge = a[1]
+#         Y_DC_converge = produce_Y_DC(Y_z_t_converge)
+#         Y_difference = produce_Y_difference(0,Y_DC_converge)
+#         #print("YEET")
+#         reps = 0
+#         while(Y_difference > Y_DC_epsilon):
+#             reps+=1
+#             #print("LANGUAGE")
+#             Y_DC_temp = np.copy(Y_DC_converge)
+#             a = produce_Y_z_t(Y_DC_converge,Q_init_converge)
+#             Y_z_t_converge = a[0]
+#             Q_init_converge = a[1]
+#             Y_DC_converge = produce_Y_DC(Y_z_t_converge)
+#             Y_difference = produce_Y_difference(Y_DC_temp,Y_DC_converge)
+#         return np.asarray([Y_z_t_converge,Y_DC_converge,Q_init_converge])
 
-    def produce_Y_DC(Y):
-        Y_DC = []
-        for v in np.arange(len(z_list)):
-            a = []
-            for i in np.arange(len(T_list)):
-                a.append(Y[i][v])
-            Y_DC.append(np.mean(a))
-        return np.asarray(Y_DC)
+#     def produce_Y_DC(Y):
+#         Y_DC = []
+#         for v in np.arange(len(z_list)):
+#             a = []
+#             for i in np.arange(len(T_list)):
+#                 a.append(Y[i][v])
+#             Y_DC.append(np.mean(a))
+#         return np.asarray(Y_DC)
 
-    def produce_Y_difference(Y_bar_temp, Y_bar): 
-        a = Y_bar_temp -  Y_bar
-        return np.linalg.norm(a)/np.linalg.norm(Y_bar)
+#     def produce_Y_difference(Y_bar_temp, Y_bar): 
+#         a = Y_bar_temp -  Y_bar
+#         return np.linalg.norm(a)/np.linalg.norm(Y_bar)
     
-    z_list = produce_z_vals()
-    T_list = produce_T_vals()
-    V_DC = produce_V_DC(V_RF)
-    Y_z_init = produce_Y_z_init(V_DC)
-    print("Y_z_init = ",Y_z_init)
-    plt.figure()
-    plt.plot(z_list,Y_z_init)
-    init_grad = ((Y_z_init[1]-Y_z_init[0])/dz)
-    print("init grad = ", init_grad)
-    Q_init = np.asarray([1e-3*init_grad]*len(T_list))
-    results = produce_Y_DC_converge(Y_z_init,Q_init)
-    Y_z_t = results[0]
-    Y_DC_z = results[1]
-    Q_final = results[2]
+#     z_list = produce_z_vals()
+#     T_list = produce_T_vals()
+#     V_DC = produce_V_DC(V_RF)
+#     Y_z_init = produce_Y_z_init(V_DC)
+#     print("Y_z_init = ",Y_z_init)
+#     plt.figure()
+#     plt.plot(z_list,Y_z_init)
+#     init_grad = ((Y_z_init[1]-Y_z_init[0])/dz)
+#     print("init grad = ", init_grad)
+#     Q_init = np.asarray([1e-3*init_grad]*len(T_list))
+#     results = produce_Y_DC_converge(Y_z_init,Q_init)
+#     Y_z_t = results[0]
+#     Y_DC_z = results[1]
+#     Q_final = results[2]
 
-    def produce_electric_field(Y,Q_init_val):
-        Q = [Q_init_val]
-        for v in np.arange(1,len(z_list) - 1):
-            Q.append((Y[v+1] - Y[v-1])/(2*dz))
-        Q.append(Q[-1])
-        return Q
+#     def produce_electric_field(Y,Q_init_val):
+#         Q = [Q_init_val]
+#         for v in np.arange(1,len(z_list) - 1):
+#             Q.append((Y[v+1] - Y[v-1])/(2*dz))
+#         Q.append(Q[-1])
+#         return Q
 
-    E = []
-    for i in np.arange(len(T_list)):
-        E.append(produce_electric_field(Y_z_t[i],Q_final[i]))
-    E_average = produce_Y_DC(E)
+#     E = []
+#     for i in np.arange(len(T_list)):
+#         E.append(produce_electric_field(Y_z_t[i],Q_final[i]))
+#     E_average = produce_Y_DC(E)
 
-    plt.figure()
-    plt.grid()
-    plt.title("Electric Potential: RF_collisionless")
-    plt.xlabel("z")
-    plt.ylabel("Y")
-    for i in np.arange(len(T_list)):
-        plt.plot(np.asarray(z_list),Y_z_t[i] , label = "t = " + str(T_list[i]))
-    plt.plot(np.asarray(z_list),Y_DC_z, label = "time averaged" )
-    plt.plot(np.asarray(z_list),Y_z_init, label = "original")
-    plt.legend()
-    plt.savefig("Figures/Electric_potential_vs_z_RF_collisionless.png")
+#     plt.figure()
+#     plt.grid()
+#     plt.title("Electric Potential: RF_collisionless")
+#     plt.xlabel("z")
+#     plt.ylabel("Y")
+#     for i in np.arange(len(T_list)):
+#         plt.plot(np.asarray(z_list),Y_z_t[i] , label = "t = " + str(T_list[i]))
+#     plt.plot(np.asarray(z_list),Y_DC_z, label = "time averaged" )
+#     plt.plot(np.asarray(z_list),Y_z_init, label = "original")
+#     plt.legend()
+#     plt.savefig("Figures/Electric_potential_vs_z_RF_collisionless.png")
 
-    plt.figure()
-    plt.grid()
-    plt.title("Electric Field: RF_collisionless")
-    plt.xlabel("z")
-    plt.ylabel("E")
-    for i in np.arange(len(T_list)):
-        plt.plot(np.asarray(z_list),E[i] , label = "t = " + str(T_list[i]))
-    plt.plot(np.asarray(z_list),E_average, label = "time averaged" )
-    plt.legend()
-    plt.savefig("Figures/Electric_Field_vs_z_RF_collisionless.png")
-    return [np.asarray(z_list),Y_DC_z]
+#     plt.figure()
+#     plt.grid()
+#     plt.title("Electric Field: RF_collisionless")
+#     plt.xlabel("z")
+#     plt.ylabel("E")
+#     for i in np.arange(len(T_list)):
+#         plt.plot(np.asarray(z_list),E[i] , label = "t = " + str(T_list[i]))
+#     plt.plot(np.asarray(z_list),E_average, label = "time averaged" )
+#     plt.legend()
+#     plt.savefig("Figures/Electric_Field_vs_z_RF_collisionless.png")
+#     return [np.asarray(z_list),Y_DC_z]
 
+print("START")
 #a = collisionless()
-#b = collisional()
-c = collisionless_parabola()
+#print("yeissT")
+b = collisional()
+print("DONE")
+#
+# c = collisionless_parabola()
 
 # plt.figure()
 # plt.grid()
