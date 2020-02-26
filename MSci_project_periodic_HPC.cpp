@@ -13,9 +13,9 @@
 #include <map>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 100; //dust grain max number
+const int dust_grain_max_input = 50; //dust grain max number
 const double dt_a = 1.0e-5;
-const double time_limit = 1.0;
+const double time_limit = 0.01;
 const double frame_req = 5;
 
 //CONSTANTS TO FUCK ABOUT WITH
@@ -46,14 +46,12 @@ const double beta = T_i/T_e;
 const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
-const double wake_potential_below = 1*lambda_D;
-const double wake_charge_multiplier = 1.0;
 const double drop_height = 9.8*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_length = 10.0*lambda_D; //container radius
 const double coulomb_limit = 5;
 
 //related to finding the charge of the dust grains
-const double dz = lambda_D/1000;
+const double dz = lambda_D/10000;
 const double root = dz/10;//preciscion of root finding method used to get dust charge
 
 const double lower_lim_z = 7.0*lambda_D;
@@ -119,14 +117,14 @@ class Dust_grain{
     std::vector<double> x_history;
     std::vector<double> y_history;
     std::vector<double> z_history;
-    double wake_charge;
     double v_i_z;
     double charge;
 
-    Dust_grain():a_c{0,0,0},v_i_z(0),
+    Dust_grain():a_c{0,0,0},
     generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m_D)))
     {
-        prod_W_vec();        
+        prod_W_vec();
+
     }
 
     double calc_speed(){
@@ -145,6 +143,13 @@ class Dust_grain{
         x_history.push_back(W_vec[0]/lambda_D);
         y_history.push_back(W_vec[1]/lambda_D);
         z_history.push_back(W_vec[2]/lambda_D);
+        if (W_vec[2] <  z_se){
+            v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec[2] - z_se),2))/m_i -2.0*g_z*(W_vec[2] - z_se)),0.5);
+        }
+        else{
+            v_i_z = 0;
+        }
+        
     }
 
     std::vector<double> f_der(std::vector<double> W_vec_f){
@@ -285,7 +290,7 @@ class Dust_Container{
         for(double i = low_z; i < high_z; i+= d_z){
             charge_list.insert( std::pair<double,double> (i, OML_charge(i)) );
         }
-        std::cout << charge_list.size() << std::endl;
+        std::cout << "charge_list.size(): " << charge_list.size() << std::endl;
     }
 
     void calc_temperature(){
@@ -304,7 +309,6 @@ class Dust_Container{
     }
     
     void create_dust_grains(){
-        std::cout << dz << "," << root << std::endl;
         double r_01_mag;
         while(Dust_grain_list.size() < dust_grain_max){
             Dust_grain_list.push_back(Dust_grain());
@@ -317,11 +321,10 @@ class Dust_Container{
                     break;
                 }
             }
-            std::cout << Dust_grain_list.size() << std::endl;
+            std::cout << "Dust_grain_list.size(): " << Dust_grain_list.size() << std::endl;
         } 
         for(int i = 0; i <  Dust_grain_list.size(); i++){
             Dust_grain_list[i].charge = charge_list.lower_bound( Dust_grain_list[i].W_vec[2])->second;
-            Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
             v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
         }
         calc_temperature();
@@ -332,20 +335,14 @@ class Dust_Container{
     void inter_particle_ca(){   
         #pragma omp parallel for
         for (int i = 0; i < combs_list.size(); i++){
-            double wake_charge; 
             std::vector<double> force_c;
             std::vector<double> r_01;
-            std::vector<double> r_01_pos{0,0,0};
-            std::vector<double> r_10_pos{0,0,0};
             double r_01_mag;
-            double r_01_pos_mag;
-            double r_10_pos_mag;
+            double p_mag;
             std::vector<double> force_c_pos_01{0,0,0};
             std::vector<double> force_c_pos_10{0,0,0};
             std::vector<double> pos_0 (combs_list[i].first.W_vec.begin(),combs_list[i].first.W_vec.begin() + 3);
             std::vector<double> pos_1 (combs_list[i].second.W_vec.begin(),combs_list[i].second.W_vec.begin() + 3);
-            
-            //std::cout << "heyy" << std::endl;
 
             r_01 =  element_add(pos_1, element_mul(pos_0,-1));
             
@@ -377,23 +374,34 @@ class Dust_Container{
 
             force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
 
-            if(pos_1[2] < z_se){
-                r_01_pos[0] = r_01[0];
-                r_01_pos[1] = r_01[1];
-                r_01_pos[2] = r_01[2] - wake_potential_below;
-                r_01_pos_mag = v_abs(r_01_pos);
-                wake_charge = std::abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].second.wake_charge;
-                force_c_pos_01 = element_mul(r_01_pos,-((combs_list[i].first.charge*wake_charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_pos_mag/lambda_D)) * (1/(pow(r_01_pos_mag,3)) + 1/(lambda_D*(pow(r_01_pos_mag,2)))));
+            std::vector<double>p_01{r_01[0], r_01[1]};
+            p_mag = v_abs(p_01);
+            //std::cout << "BRAHHHH" << std::endl;
+            if((pos_1[2] < z_se) && (pos_1[2] > 2*grain_R + pos_0[2])){
+                double M = combs_list[i].second.v_i_z/v_B;
+                double z_plus = abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
+                double z_minus = abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
+                double A = cos((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
+                double B = cos((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
+                double C = sin((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
+                double D = sin((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
+                double F_p_far = -1*combs_list[i].first.charge*(2*combs_list[i].second.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(   (1/p_mag)*(-0.5)*((1/z_plus)*(A - 1/pow(2,0.5)) + (1/z_minus)*(B - 1/pow(2,0.5))) -pow(z_plus,-2)*pow((pow(M,2)-1),0.5)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C/lambda_D) + pow(z_minus,-2)*pow((pow(M,2)-1),0.5)*(B - 1/pow(2,0.5)) + (1/z_minus)*(D/lambda_D) );
+                double F_z_far = -1*combs_list[i].first.charge*(2*combs_list[i].second.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(  -pow(z_plus,-2)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C*(1/lambda_D)/pow((pow(M,2)-1),0.5)) - pow(z_minus,-2)*(B - 1/pow(2,0.5)) - (1/z_minus)*(D*(1/lambda_D)/pow((pow(M,2)-1),0.5))      );
+                force_c_pos_01 = {(p_01[0]/p_mag)*F_p_far, (p_01[1]/p_mag)*F_p_far, F_z_far};
+            };
+            if((pos_0[2] < z_se) && (pos_0[2] > 2*grain_R + pos_1[2])){
+                double M = combs_list[i].first.v_i_z/v_B;
+                double z_plus = abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
+                double z_minus = abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
+                double A = cos((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
+                double B = cos((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
+                double C = sin((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
+                double D = sin((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
+                double F_p_far = -1*combs_list[i].second.charge*(2*combs_list[i].first.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(   (1/p_mag)*(-0.5)*((1/z_plus)*(A - 1/pow(2,0.5)) + (1/z_minus)*(B - 1/pow(2,0.5))) -pow(z_plus,-2)*pow((pow(M,2)-1),0.5)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C/lambda_D) + pow(z_minus,-2)*pow((pow(M,2)-1),0.5)*(B - 1/pow(2,0.5)) + (1/z_minus)*(D/lambda_D) );
+                double F_z_far = -1*combs_list[i].second.charge*(2*combs_list[i].first.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(  -pow(z_plus,-2)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C*(1/lambda_D)/pow((pow(M,2)-1),0.5)) - pow(z_minus,-2)*(B - 1/pow(2,0.5)) - (1/z_minus)*(D*(1/lambda_D)/pow((pow(M,2)-1),0.5))      );
+                force_c_pos_10 = {(-p_01[0]/p_mag)*F_p_far, (-p_01[1]/p_mag)*F_p_far, F_z_far};
             };
 
-            if(pos_0[2] < z_se){
-                r_10_pos[0] = -r_01[0];
-                r_10_pos[1] = -r_01[1];
-                r_10_pos[2] = -r_01[2] - wake_potential_below;
-                r_10_pos_mag = v_abs(r_10_pos);
-                wake_charge = std::abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].first.wake_charge;
-                force_c_pos_10 = element_mul(r_10_pos,-((combs_list[i].second.charge*wake_charge)/(4*M_PI*epsilon_0))*exp((grain_R/lambda_D) - (r_10_pos_mag/lambda_D)) * (1/(pow(r_10_pos_mag,3)) + 1/(lambda_D*(pow(r_10_pos_mag,2)))));
-            };
             combs_list[i].first.a_c = element_add(combs_list[i].first.a_c,element_add(element_mul(force_c,1/m_D), element_mul(force_c_pos_01,1/m_D)));
             combs_list[i].second.a_c = element_add(combs_list[i].second.a_c,element_add(element_mul(force_c,1/-m_D) , element_mul(force_c_pos_10,1/m_D)));  
         }
@@ -415,7 +423,6 @@ class Dust_Container{
             v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
 
             Dust_grain_list[i].charge = charge_list.lower_bound(Dust_grain_list[i].W_vec[2])->second;
-            Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
         };
         calc_temperature();
         v_squared_sum = 0;
@@ -456,6 +463,8 @@ int main(){
     std::cout << "Running..." << std::endl;
 
     Dust_Container Dusty_plasma_crystal = Dust_Container(dust_grain_max_input);
+
+    std::cout << "INJECT DUST" << std::endl;
 
     while (Dusty_plasma_crystal.time_list.back() < time_limit){
         Dusty_plasma_crystal.next_frame(dt_a);

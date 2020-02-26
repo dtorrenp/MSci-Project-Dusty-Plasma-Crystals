@@ -13,9 +13,9 @@
 #include <map>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 5; //dust grain max number
+const int dust_grain_max_input = 10; //dust grain max number
 const double dt_a = 1.0e-4;
-const double time_limit = 0.5;
+const double time_limit = 1;
 const double frame_req = 5;
 
 //CONSTANTS TO FUCK ABOUT WITH
@@ -46,8 +46,6 @@ const double beta = T_i/T_e;
 const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
 const double lambda_D = pow((1/(1/(pow(lambda_de,2)) + 1/(pow(lambda_di,2)))),0.5);//get lambda_D
-const double wake_potential_below = 1*lambda_D;
-const double wake_charge_multiplier = 1.0;
 const double drop_height = 9.8*lambda_D;//drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 const double container_radius = 25.0*lambda_D;//set radius of contianer ie wall radius
 const double coulomb_limit = 5;
@@ -59,7 +57,7 @@ const double omega = (2*M_PI)/T;//TAKEN FROM NITTER PAPER 13.6M Hz
 const double Y_DC = -50.0;//NITTER
 const double phi_wall_z = Y_DC; //TRY THIS FOR NOW SEE HOW IT WORKS
 const double Y_ref = 50.0;//NITTER
-const double dz = lambda_D/1000;
+const double dz = lambda_D/10000;
 const double n_s = n_i0*exp(0.5);
 const double p_d = (dust_grain_max_input*m_D)/(M_PI*pow(container_radius,2)*drop_height);
 const double root = dz/10;//preciscion of root finding method used to get dust charge
@@ -137,12 +135,10 @@ class Dust_grain{
     std::vector<double> x_history;
     std::vector<double> y_history;
     std::vector<double> z_history;
-    double wake_charge;
     double v_i_z;
-    std::vector<double>wake_pos;
     double charge;
 
-    Dust_grain():a_c{0,0,0},v_i_z(0),
+    Dust_grain():a_c{0,0,0},v_i_z(1),
     generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m_D)))
     {
         prod_W_vec();      
@@ -165,9 +161,6 @@ class Dust_grain{
         x_history.push_back(W_vec[0]/lambda_D);
         y_history.push_back(W_vec[1]/lambda_D);
         z_history.push_back(W_vec[2]/lambda_D);
-        wake_pos.push_back(W_vec[0]);
-        wake_pos.push_back(W_vec[1]);
-        wake_pos.push_back(W_vec[2] - wake_potential_below);
     }
 
     std::vector<double> f_der(std::vector<double> W_vec_f){
@@ -222,151 +215,10 @@ class Dust_Container{
 
 	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0},v_squared_sum{0}
     {
-            produce_z_vals(dz, lower_lim_z,upper_lim_z);
-            produce_T_vals(d_T,T);
-            find_Y(dz);
-            calc_dust_grain_charges(dz, lower_lim_z,upper_lim_z);
-            create_dust_grains();
+        calc_dust_grain_charges(dz, lower_lim_z,upper_lim_z);
+        create_dust_grains();
     } 
 
-    //CALC Y DISTRIBUTION USING NITTER 
-    void produce_z_vals(double d_z, double low_z, double high_z){
-        for(double i = low_z; i < high_z; i+= d_z){
-            z_list.push_back(i);
-        }
-    }
-
-    void produce_T_vals(double d_T, double T){
-        for(double i = 0; i < T; i+= d_T){
-            T_list.push_back(i);
-        }
-    }
-
-    // Y is an array of discretised Y(z) arrays at various t
-    std::vector<std::vector<double>> produce_Y_0(){
-        //rows are for a given pos z and inside is for a range of t values
-        std::vector<std::vector<double>> Y_0; 
-        std::vector<double> Y_0_row;
-        for(int i = 0; i < T_list.size() ; i+= 1){
-            for(int v = 0; v < z_list.size() ; v += 1){
-                Y_0_row.push_back(Y_DC + Y_ref*sin(omega*T_list[i]));
-            Y_0.push_back(Y_0_row);
-            }
-        }
-        return Y_0; 
-    }
-
-    std::vector<double> produce_u_0(){
-        std::vector<double> u_0;
-        for(int v = 0; v < z_list.size() ; v += 1){
-            u_0.push_back(-1);
-        }
-        return u_0;
-    }
-
-    // Y_bar is time-averaged Y(z,t) over time period
-    std::vector<double> produce_Y_bar(std::vector<std::vector<double>> Y){
-        std::vector<double> Y_bar;
-        for(int i = 0; i < T_list.size() ; i+= 1){
-            for(int v = 0; v < z_list.size() ; v += 1){
-                Y_bar[v] += Y[i][v];
-            }
-        }
-        return Y_bar;
-    }
-
-    std::vector<double>f_der_u_new(std::vector<double> Y_bar, std::vector<double> u_0, double h){
-        std::vector<double> f; 
-        for(int v = 1; v < z_list.size() - 1 ; v += 1){//NOTE SURE ABOUT THE LIMITS
-            //BOUNDRY CONDITIONS
-            f.push_back((-1/u_0[v])*(Y_bar[v+1] - Y_bar[v-1])/(2*h));
-        }
-        return f;
-    }
-
-    std::vector<double> step_u_new(std::vector<double> Y_bar, std::vector<double> u_0, double h){
-        std::vector<double> u;
-        std::vector<double> k1 = element_mul(f_der_u_new(Y_bar,u_0,h),h);
-        std::vector<double> k2 = element_mul(f_der_u_new(element_add_cst(Y_bar,h/2),element_add(u_0,element_mul(k1,1/2)),h),h);//SHOULD THESE BE h or h/2???????
-        std::vector<double> k3 = element_mul(f_der_u_new(element_add_cst(Y_bar,h/2),element_add(u_0,element_mul(k2,1/2)),h),h);
-        std::vector<double> k4 = element_mul(f_der_u_new(element_add_cst(Y_bar,h),element_add(u_0,k3),h),h);
-        u = element_add(u_0,element_mul(element_add(element_add(element_add(k1,element_mul(k2,2.0)),element_mul(k3,2.0)),k4),1.0/6.0));
-        return u;
-    }
-
-    std::vector<double> produce_Q(std::vector<double> Y_row, double h){
-        std::vector<double> Q;
-        for(int v = 1; v < z_list.size() - 1 ; v += 1){
-            Q.push_back((Y_row[v+1] -2*Y_row[v] + Y_row[v-1])/pow(h,2));
-        }
-        return Q;
-    }
-
-    std::vector<std::vector<double>> f_der_Y_new(std::vector<double> Y_row, std::vector<double> Q, std::vector<double> u, double h){
-        std::vector<std::vector<double>> f;
-        std::vector<double> dY_dz;
-        std::vector<double> dQ_dz; 
-
-        for(int v = 1; v < z_list.size() - 1 ; v += 1){//NOT SURE ABOUT LIMITS???
-            dY_dz.push_back(Q[v]);
-            dQ_dz.push_back(exp(Y_row[v]) + 1/u[v] - p_d/(e_charge*n_s));
-        }
-        f.push_back(dY_dz);
-        f.push_back(dQ_dz);
-        return f;
-    }
-
-    std::vector<double> step_Y_new(std::vector<double> Y_row, std::vector<double> u, double h){
-        std::vector<double> Y_row_new;
-        std::vector<double> Q = produce_Q(Y_row,h);
-        std::vector<std::vector<double>> k1 = special_element_mul(f_der_Y_new(Y_row,Q,u,h),h);
-        std::vector<std::vector<double>> k2 = special_element_mul(f_der_Y_new(element_add(Y_row,element_mul(k1[0],1/2)), element_add(Q,element_mul(k1[1],1/2)),element_add_cst(u,h/2),h),h);//SHOULD THESE BE h or h/2???????
-        std::vector<std::vector<double>> k3 = special_element_mul(f_der_Y_new(element_add(Y_row,element_mul(k2[0],1/2)), element_add(Q,element_mul(k2[1],1/2)),element_add_cst(u,h/2),h),h);
-        std::vector<std::vector<double>> k4 = special_element_mul(f_der_Y_new(element_add(Y_row,k2[0]), element_add(Q,k2[1]),element_add_cst(u,h),h),h);
-        Y_row_new = element_add(Y_row,element_mul(element_add(element_add(element_add(k1[0],element_mul(k2[0],2.0)),element_mul(k3[0],2.0)),k4[0]),1.0/6.0));
-        return Y_row_new;
-    }
-
-    std::vector<std::vector<double>> produce_Y_new(std::vector<std::vector<double>> Y, std::vector<double> u, double h){
-        std::vector<std::vector<double>> Y_new;
-        for(int i = 0; i < T_list.size() ; i+= 1){
-            Y_new.push_back(step_Y_new(Y[i],u,h));
-        }
-        return Y_new;
-    }
-
-    double produce_Y_difference(std::vector<double> Y_bar_temp, std::vector<double> Y_bar){  
-        return v_abs(element_add(Y_bar_temp, element_mul(Y_bar,-1)));
-    }
-
-    void find_Y(double h){
-        std::vector<std::vector<double>> Y;
-        std::vector<double> u;
-        std::vector<double> Y_bar;
-        std::vector<double> Y_bar_temp;
-        double Y_difference;
-
-        Y = produce_Y_0();
-        u = produce_u_0();
-        Y_bar = produce_Y_bar(Y);
-
-        while(Y_difference > Y_epsilon){
-            Y_bar_temp = Y_bar;
-            u = step_u_new(Y_bar,u,h);
-            Y = produce_Y_new(Y,u,h);
-            Y_bar = produce_Y_bar(Y);
-            Y_difference = produce_Y_difference(Y_bar_temp,Y_bar);
-        }
-
-        for(int i = 0; i < T_list.size() ; i+= 1){
-            for(int v = 0; v < z_list.size(); v += 1){
-                time_potential_list[i].insert(std::pair<double,double> (z_list[v], Y[i][v]));
-            }
-        }
-    }
-
-    //OML CALCULATION USING CAMERON
-    //OUTSIDE THE SHEATH
     double f_x_OML(double x_n){
         return sqrt(beta)*(1-x_n/beta) -exp(x_n);
     }
@@ -395,7 +247,6 @@ class Dust_Container{
         return W_0;
     }
 
-    //INSIDE THE SHEATH
     double f_x_Sheath(double x_n, double A, double B){
         return A*exp(B + x_n) - (2/(2*B - 1))*x_n - 1;
     }
@@ -439,7 +290,7 @@ class Dust_Container{
     }
     void calc_dust_grain_charges(double d_z, double low_z, double high_z){
         for(double i = low_z; i < high_z; i+= d_z){
-            charge_list.insert( std::pair<double,double> (i, OML_charge(i)));
+            charge_list.insert( std::pair<double,double> (i, OML_charge(i)) );
         }
         std::cout << charge_list.size() << std::endl;
     }
@@ -458,7 +309,7 @@ class Dust_Container{
             }
         }
     }
-
+    
     void create_dust_grains(){
         std::cout << dz << "," << root << std::endl;
         double r_01_mag;
@@ -477,7 +328,6 @@ class Dust_Container{
         } 
         for(int i = 0; i <  Dust_grain_list.size(); i++){
             Dust_grain_list[i].charge = charge_list.lower_bound( Dust_grain_list[i].W_vec[2])->second;
-            Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
             v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
         }
         calc_temperature();
@@ -509,8 +359,7 @@ class Dust_Container{
             force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
 
             if((pos_1[2] < z_se) && (pos_1[2] > pos_0[2])){
-                double v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((pos_1[2] - z_se),2))/m_i -2.0*g_z*(pos_1[2] - z_se)),0.5);
-                double M = v_i_z/v_B;
+                double M = combs_list[i].second.v_i_z/v_B;
                 double z_plus = abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
                 double z_minus = abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
                 double A = cos((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
@@ -522,8 +371,7 @@ class Dust_Container{
                 force_c_pos_01 = {(p_01[0]/p_mag)*F_p_far, (p_01[1]/p_mag)*F_p_far, F_z_far};
             };
             if((pos_0[2] < z_se) && (pos_0[2] > pos_1[2])){
-                double v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((pos_0[2] - z_se),2))/m_i -2.0*g_z*(pos_0[2] - z_se)),0.5);
-                double M = v_i_z/v_B;
+                double M = combs_list[i].first.v_i_z/v_B;
                 double z_plus = abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
                 double z_minus = abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
                 double A = cos((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
@@ -554,11 +402,7 @@ class Dust_Container{
             Dust_grain_list[i].x_history.push_back(Dust_grain_list[i].W_vec[0]/lambda_D);
             Dust_grain_list[i].y_history.push_back( Dust_grain_list[i].W_vec[1]/lambda_D);
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
-            
             Dust_grain_list[i].charge = charge_list.lower_bound(Dust_grain_list[i].W_vec[2])->second;
-            //std::cout << Dust_grain_list[i].charge << std::endl;
-            Dust_grain_list[i].wake_charge = abs(Dust_grain_list[i].charge)*wake_charge_multiplier;
-
             v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);
 
         };
@@ -601,6 +445,8 @@ int main(){
     std::cout << "Running..." << std::endl;
 
     Dust_Container Dusty_plasma_crystal = Dust_Container(dust_grain_max_input);
+
+    std::cout << "INJECT DUST" << std::endl;
 
     while (Dusty_plasma_crystal.time_list.back() < time_limit){
         Dusty_plasma_crystal.next_frame(dt_a);

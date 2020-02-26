@@ -39,15 +39,15 @@ hist_div_val = 4 #larger less bins, smaller more bins
 colour_list = ["red","green","blue","orange","black","brown"]
 #%%
 
-status = "Run"#input("Compile or Run?")
+status = "Compile"#input("Compile or Run?")
 load = "no"
 boundry = "Periodic"#input("Periodic or Finite?")
-standard_plots = "no"
-layer_plots = "yes"#input("layers?")
+standard_plots = "yes"
+layer_plots = "no"#input("layers?")
 
 x_plot = "no"
 y_plot = "no"
-z_plot = "no"
+z_plot = "yes"
 final_pos_plot = "yes"
 motion_plot = "no" 
 temp_plot = "yes"
