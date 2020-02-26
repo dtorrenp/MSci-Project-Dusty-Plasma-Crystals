@@ -488,17 +488,12 @@ class Dust_Container{
     void inter_particle_ca(){ 
         #pragma omp parallel for       
         for (int i = 0; i < combs_list.size(); i++){
-            double wake_charge; 
             std::vector<double> force_c;
             std::vector<double> r_01;
-            std::vector<double> r_01_pos;
-            std::vector<double> r_10_pos;
             double r_01_mag;
-            double r_01_pos_mag;
-            double r_10_pos_mag;
+            double p_mag;
             std::vector<double> force_c_pos_01{0,0,0};
             std::vector<double> force_c_pos_10{0,0,0};
-
             std::vector<double> pos_0 (combs_list[i].first.W_vec.begin(),combs_list[i].first.W_vec.begin() + 3);
             std::vector<double> pos_1 (combs_list[i].second.W_vec.begin(),combs_list[i].second.W_vec.begin() + 3);
 
@@ -508,23 +503,36 @@ class Dust_Container{
                 continue;
             }
 
-            std::vector<double> wake_pos_0 (combs_list[i].first.wake_pos.begin(),combs_list[i].first.wake_pos.begin() + 3);
-            std::vector<double> wake_pos_1 (combs_list[i].second.wake_pos.begin(),combs_list[i].second.wake_pos.begin() + 3);
-
-            r_01_pos =  element_add(wake_pos_1,element_mul( pos_0,-1));
-            r_01_pos_mag = v_abs(r_01_pos);
-            r_10_pos = element_add(wake_pos_0,element_mul(pos_1,-1));
-            r_10_pos_mag = v_abs(r_10_pos);
+            std::vector<double>p_01{r_01[0], r_01[1]};
+            p_mag = v_abs(p_01);
 
             force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
 
-            if(pos_1[2] < z_se){
-                wake_charge = abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].second.wake_charge;
-                force_c_pos_01 = element_mul(r_01_pos,-((combs_list[i].first.charge*wake_charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_pos_mag/lambda_D)) * (1/(pow(r_01_pos_mag,3)) + 1/(lambda_D*(pow(r_01_pos_mag,2)))));
+            if((pos_1[2] < z_se) && (pos_1[2] > pos_0[2])){
+                double v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((pos_1[2] - z_se),2))/m_i -2.0*g_z*(pos_1[2] - z_se)),0.5);
+                double M = v_i_z/v_B;
+                double z_plus = abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
+                double z_minus = abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
+                double A = cos((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
+                double B = cos((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
+                double C = sin((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
+                double D = sin((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
+                double F_p_far = -1*combs_list[i].first.charge*(2*combs_list[i].second.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(   (1/p_mag)*(-0.5)*((1/z_plus)*(A - 1/pow(2,0.5)) + (1/z_minus)*(B - 1/pow(2,0.5))) -pow(z_plus,-2)*pow((pow(M,2)-1),0.5)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C/lambda_D) + pow(z_minus,-2)*pow((pow(M,2)-1),0.5)*(B - 1/pow(2,0.5)) + (1/z_minus)*(D/lambda_D) );
+                double F_z_far = -1*combs_list[i].first.charge*(2*combs_list[i].second.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(  -pow(z_plus,-2)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C*(1/lambda_D)/pow((pow(M,2)-1),0.5)) - pow(z_minus,-2)*(B - 1/pow(2,0.5)) - (1/z_minus)*(D*(1/lambda_D)/pow((pow(M,2)-1),0.5))      );
+                force_c_pos_01 = {(p_01[0]/p_mag)*F_p_far, (p_01[1]/p_mag)*F_p_far, F_z_far};
             };
-            if(pos_0[2] < z_se){
-                wake_charge = abs(combs_list[i].first.v_i_z/v_B)*combs_list[i].first.wake_charge;
-                force_c_pos_10 = element_mul(r_10_pos,-((combs_list[i].second.charge*wake_charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_10_pos_mag/lambda_D)) * (1/(pow(r_10_pos_mag,3)) + 1/(lambda_D*(pow(r_10_pos_mag,2)))));
+            if((pos_0[2] < z_se) && (pos_0[2] > pos_1[2])){
+                double v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((pos_0[2] - z_se),2))/m_i -2.0*g_z*(pos_0[2] - z_se)),0.5);
+                double M = v_i_z/v_B;
+                double z_plus = abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
+                double z_minus = abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
+                double A = cos((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
+                double B = cos((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
+                double C = sin((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
+                double D = sin((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
+                double F_p_far = -1*combs_list[i].second.charge*(2*combs_list[i].first.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(   (1/p_mag)*(-0.5)*((1/z_plus)*(A - 1/pow(2,0.5)) + (1/z_minus)*(B - 1/pow(2,0.5))) -pow(z_plus,-2)*pow((pow(M,2)-1),0.5)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C/lambda_D) + pow(z_minus,-2)*pow((pow(M,2)-1),0.5)*(B - 1/pow(2,0.5)) + (1/z_minus)*(D/lambda_D) );
+                double F_z_far = -1*combs_list[i].second.charge*(2*combs_list[i].first.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(  -pow(z_plus,-2)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C*(1/lambda_D)/pow((pow(M,2)-1),0.5)) - pow(z_minus,-2)*(B - 1/pow(2,0.5)) - (1/z_minus)*(D*(1/lambda_D)/pow((pow(M,2)-1),0.5))      );
+                force_c_pos_10 = {(-p_01[0]/p_mag)*F_p_far, (-p_01[1]/p_mag)*F_p_far, F_z_far};
             };
 
             combs_list[i].first.a_c = element_add(combs_list[i].first.a_c,element_add(element_mul(force_c,1/m_D), element_mul(force_c_pos_01,1/m_D)));

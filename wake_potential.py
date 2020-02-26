@@ -51,7 +51,7 @@ p_0 = 5*lambda_D
 Q = -1.8*1e-15
 q_d = -1.8*1e-15
 
-t = 25
+t = 0
 z = np.linspace(0,z_se,100)
 p = np.linspace(-p_0,p_0,100)
 
