@@ -30,7 +30,7 @@ lambda_di = ((epsilon_0*k_b*T_i)/(n_i0*(e_charge**2)))**0.5
 lambda_D = (1/(1/(lambda_de**2) + 1/(lambda_di**2)))**0.5#get lambda_D
 container_height = 11*lambda_D#drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 container_radius = 25*lambda_D#set radius of contianer ie wall radius
-container_length = 10*lambda_D
+container_length = 5*lambda_D
 z_se = 10*lambda_D#distance from bottom of container to the sheath edge
 r_se = 25*lambda_D#distance from wall to the sheathe edge
 r_se_inv = container_radius - r_se
@@ -41,23 +41,23 @@ colour_list = ["red","green","blue","orange","black","brown"]
 
 status = "Compile"#input("Compile or Run?")
 load = "no"
-boundry = "Periodic"#input("Periodic or Finite?")
+boundry = "Finite"#input("Periodic or Finite?")
 standard_plots = "yes"
 layer_plots = "no"#input("layers?")
 
-x_plot = "no"
-y_plot = "no"
+x_plot = "yes"
+y_plot = "yes"
 z_plot = "yes"
 final_pos_plot = "yes"
-motion_plot = "no" 
+motion_plot = "yes" 
 temp_plot = "yes"
 speed_plot = "yes"
 
 voronoi_plot = "no"
 delaunay_plot = "no"
 g_plot = "no"
-layer_final_pos_plot = "no"
-threeD_plot = "yes"#doesnt work atm
+layer_final_pos_plot = "yes"
+threeD_plot = "no"#doesnt work atm
 anim = "no"
 
 if status == "Compile":
@@ -100,7 +100,8 @@ if status == "Compile":
 
 #%%
 DATA_NAME = input("Data name?(NOT FILENAME)")#"Finite_Dust_grain_max_5_Final_Temperature_48.356239_frames_501"
-FILENAME = input("FILE name?")#"HPC_Data/Finite_Dust_grain_max_5_Final_Temperature_48.356239_frames_501.csv"
+FILENAME = "HPC_Data/"+ DATA_NAME + ".csv"
+#input("FILE name?")#"HPC_Data/Finite_Dust_grain_max_5_Final_Temperature_48.356239_frames_501.csv"
 NEW_FOLDER = "Figures/" + DATA_NAME
 if str(os.path.exists(NEW_FOLDER)) == "False":
    os.mkdir(NEW_FOLDER)
@@ -289,7 +290,7 @@ if standard_plots == "yes":
          plt.savefig(NEW_FOLDER + "/Finite_Speed_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
 if layer_plots == "yes":
-   layers = [0.0,11]
+   layers = [0.0,9.9,11]
    layer_data = []
 
    if boundry == "Periodic":

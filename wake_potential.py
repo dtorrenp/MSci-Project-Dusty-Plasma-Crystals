@@ -65,6 +65,8 @@ v = 0
 # v_d = v - v_i_z
 # M = v_d/C_s
 
+print(grain_R/lambda_D)
+exit()
 M_single = 1.1
 M = M_single
 

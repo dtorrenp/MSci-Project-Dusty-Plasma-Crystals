@@ -138,7 +138,7 @@ class Dust_grain{
     double v_i_z;
     double charge;
 
-    Dust_grain():a_c{0,0,0},v_i_z(1),
+    Dust_grain():a_c{0,0,0},
     generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,sqrt((k_b*T_i)/m_D)))
     {
         prod_W_vec();      
@@ -161,6 +161,12 @@ class Dust_grain{
         x_history.push_back(W_vec[0]/lambda_D);
         y_history.push_back(W_vec[1]/lambda_D);
         z_history.push_back(W_vec[2]/lambda_D);
+        if (W_vec[2] <  z_se){
+            v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec[2] - z_se),2))/m_i -2.0*g_z*(W_vec[2] - z_se)),0.5);
+        }
+        else{
+            v_i_z = 0;
+        }
     }
 
     std::vector<double> f_der(std::vector<double> W_vec_f){
@@ -170,7 +176,9 @@ class Dust_grain{
         f.push_back(W_vec_f[5]);
         //x,y components
         double radial = pow((pow(W_vec_f[0],2) + pow(W_vec_f[1],2)),0.5);
-        double rad_acc_mag = (charge/m_D)*k_r_restore*abs(radial);
+        double rad_acc_mag = -(charge*k_r_restore/m_D)*tan((radial/container_radius)*(M_PI/2));
+        std::cout << (charge/m_D)*k_r_restore*std::abs(radial) <<","<< rad_acc_mag << std::endl;
+        //double rad_acc_mag = (charge/m_D)*k_r_restore*std::abs(radial);
 
         f.push_back(rad_acc_mag*(W_vec_f[0]/radial) - (alpha_n*W_vec_f[3])/m_D + a_c[0] + (therm_coeff*dist(generator))/m_D + (therm_coeff_i*dist(generator))/m_D);// - (alpha_i*pow(W_vec_f[3],2))/m_D TAKE OUT ION DRAG//drag, sheathe and coloumb force and ion drag force
         f.push_back(rad_acc_mag*(W_vec_f[1]/radial) - (alpha_n*W_vec_f[4])/m_D + a_c[1] + (therm_coeff*dist(generator))/m_D + (therm_coeff_i*dist(generator))/m_D);
@@ -239,7 +247,7 @@ class Dust_Container{
         double a_n = a_init;
         double a_plus = calc_x_plus_OML(a_init);//do i need to give type if product of a thing?
 
-        while(abs(a_plus - a_n) > root_prec){
+        while(std::abs(a_plus - a_n) > root_prec){
             a_n = a_plus;
             a_plus = calc_x_plus_OML(a_n);
         }
@@ -269,7 +277,7 @@ class Dust_Container{
         double a_n = a_init;
         double a_plus = calc_x_plus_Sheath(a_init,A,B);
 
-        while(abs(a_plus - a_n) > root_prec){
+        while(std::abs(a_plus - a_n) > root_prec){
             a_n = a_plus;
             a_plus = calc_x_plus_Sheath(a_n,A,B);
         }
@@ -360,8 +368,8 @@ class Dust_Container{
 
             if((pos_1[2] < z_se) && (pos_1[2] > pos_0[2])){
                 double M = combs_list[i].second.v_i_z/v_B;
-                double z_plus = abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
-                double z_minus = abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
+                double z_plus = std::abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
+                double z_minus = std::abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
                 double A = cos((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
                 double B = cos((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
                 double C = sin((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
@@ -372,8 +380,8 @@ class Dust_Container{
             };
             if((pos_0[2] < z_se) && (pos_0[2] > pos_1[2])){
                 double M = combs_list[i].first.v_i_z/v_B;
-                double z_plus = abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
-                double z_minus = abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
+                double z_plus = std::abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
+                double z_minus = std::abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
                 double A = cos((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
                 double B = cos((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
                 double C = sin((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
