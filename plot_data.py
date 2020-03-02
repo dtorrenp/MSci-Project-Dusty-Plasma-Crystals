@@ -39,11 +39,12 @@ hist_div_val = 4 #larger less bins, smaller more bins
 colour_list = ["red","green","blue","orange","black","brown"]
 #%%
 
-status = "Compile"#input("Compile or Run?")
+status = "Run"#input("Compile or Run?")
 load = "no"
-boundry = "Finite"#input("Periodic or Finite?")
+boundry = "Periodic"#input("Periodic or Finite?")
 standard_plots = "yes"
-layer_plots = "no"#input("layers?")
+layer_plots = "yes"#input("layers?")
+layers = [0.0,9.9,11]
 
 x_plot = "yes"
 y_plot = "yes"
@@ -108,7 +109,7 @@ if str(os.path.exists(NEW_FOLDER)) == "False":
 
 #%%
 data = pd.read_csv(FILENAME)
-dust_grain_max = int( (len(data.columns))/3 - 1)
+dust_grain_max = int( (len(data.columns))/6 - 1)
 last_time_val = data["Time_list"].iloc[-1]
 y_z_se = [z_se/lambda_D]*len(data["Time_list"])
 temp_ion = [T_i]*len(data["Time_list"])
@@ -290,7 +291,6 @@ if standard_plots == "yes":
          plt.savefig(NEW_FOLDER + "/Finite_Speed_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
 if layer_plots == "yes":
-   layers = [0.0,9.9,11]
    layer_data = []
 
    if boundry == "Periodic":

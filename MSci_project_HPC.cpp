@@ -79,6 +79,7 @@ const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn;//maybe 8/3
 const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0;
 const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
 const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i);
+const double wake_safety_factor = grain_R*0.5;
 //make functions for element-wise multiplication and addition of vectors
 
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
@@ -135,6 +136,9 @@ class Dust_grain{
     std::vector<double> x_history;
     std::vector<double> y_history;
     std::vector<double> z_history;
+    std::vector<double> vx_history;
+    std::vector<double> vy_history;
+    std::vector<double> vz_history;
     double v_i_z;
     double charge;
 
@@ -158,9 +162,14 @@ class Dust_grain{
         W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
         W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
         W_vec.push_back(-init_speed + (rand()/(RAND_MAX + 1.0))*init_speed/2);
+    }
+    void init_history_and_viz(){
         x_history.push_back(W_vec[0]/lambda_D);
         y_history.push_back(W_vec[1]/lambda_D);
         z_history.push_back(W_vec[2]/lambda_D);
+        vx_history.push_back(W_vec[3]);
+        vy_history.push_back(W_vec[4]);
+        vz_history.push_back(W_vec[5]);
         if (W_vec[2] <  z_se){
             v_i_z = pow((pow(v_B,2) + (i_charge*k_z_restore*pow((W_vec[2] - z_se),2))/m_i -2.0*g_z*(W_vec[2] - z_se)),0.5);
         }
@@ -169,6 +178,7 @@ class Dust_grain{
         }
     }
 
+
     std::vector<double> f_der(std::vector<double> W_vec_f){
         std::vector<double> f; 
         f.push_back(W_vec_f[3]);
@@ -176,8 +186,9 @@ class Dust_grain{
         f.push_back(W_vec_f[5]);
         //x,y components
         double radial = pow((pow(W_vec_f[0],2) + pow(W_vec_f[1],2)),0.5);
-        double rad_acc_mag = -(charge*k_r_restore/m_D)*tan((radial/container_radius)*(M_PI/2));
-        std::cout << (charge/m_D)*k_r_restore*std::abs(radial) <<","<< rad_acc_mag << std::endl;
+        double rad_acc_mag = (1/m_D)*((-charge*phi_wall_r)/(r_se*(1/pow(cos(M_PI/4),2) - 1)))*(1/pow(cos((M_PI/2)*(std::abs(radial)/r_se)),2) - 1);
+        //double rad_acc_mag = -(charge*k_r_restore/m_D)*tan((radial/container_radius)*(M_PI/2));
+        //std::cout << (charge/m_D)*k_r_restore*std::abs(radial) << "," << rad_acc_mag << std::endl;
         //double rad_acc_mag = (charge/m_D)*k_r_restore*std::abs(radial);
 
         f.push_back(rad_acc_mag*(W_vec_f[0]/radial) - (alpha_n*W_vec_f[3])/m_D + a_c[0] + (therm_coeff*dist(generator))/m_D + (therm_coeff_i*dist(generator))/m_D);// - (alpha_i*pow(W_vec_f[3],2))/m_D TAKE OUT ION DRAG//drag, sheathe and coloumb force and ion drag force
@@ -319,7 +330,7 @@ class Dust_Container{
     }
     
     void create_dust_grains(){
-        std::cout << dz << "," << root << std::endl;
+        //std::cout << dz << "," << root << std::endl;
         double r_01_mag;
         while(Dust_grain_list.size() < dust_grain_max){
             Dust_grain_list.push_back(Dust_grain());
@@ -327,7 +338,7 @@ class Dust_Container{
             for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
                 std::vector<double> pos_0 (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
                 r_01_mag = v_abs(element_add(pos_1, element_mul(pos_0,-1)));
-                if (r_01_mag <= 2*grain_R){
+                if (r_01_mag <= 3*grain_R){
                     Dust_grain_list.pop_back();
                     break;
                 }
@@ -335,6 +346,7 @@ class Dust_Container{
             std::cout << Dust_grain_list.size() << std::endl;
         } 
         for(int i = 0; i <  Dust_grain_list.size(); i++){
+            Dust_grain_list[i].init_history_and_viz();
             Dust_grain_list[i].charge = charge_list.lower_bound( Dust_grain_list[i].W_vec[2])->second;
             v_squared_sum += pow(Dust_grain_list[i].calc_speed(),2);
         }
@@ -363,10 +375,9 @@ class Dust_Container{
 
             std::vector<double>p_01{r_01[0], r_01[1]};
             p_mag = v_abs(p_01);
-
             force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
-
-            if((pos_1[2] < z_se) && (pos_1[2] > pos_0[2])){
+            
+            if((pos_1[2] < (z_se - wake_safety_factor)) && (pos_1[2] > pos_0[2])){
                 double M = combs_list[i].second.v_i_z/v_B;
                 double z_plus = std::abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
                 double z_minus = std::abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
@@ -378,7 +389,7 @@ class Dust_Container{
                 double F_z_far = -1*combs_list[i].first.charge*(2*combs_list[i].second.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(  -pow(z_plus,-2)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C*(1/lambda_D)/pow((pow(M,2)-1),0.5)) - pow(z_minus,-2)*(B - 1/pow(2,0.5)) - (1/z_minus)*(D*(1/lambda_D)/pow((pow(M,2)-1),0.5))      );
                 force_c_pos_01 = {(p_01[0]/p_mag)*F_p_far, (p_01[1]/p_mag)*F_p_far, F_z_far};
             };
-            if((pos_0[2] < z_se) && (pos_0[2] > pos_1[2])){
+            if((pos_0[2] < (z_se - wake_safety_factor)) && (pos_0[2] > pos_1[2])){
                 double M = combs_list[i].first.v_i_z/v_B;
                 double z_plus = std::abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
                 double z_minus = std::abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
@@ -412,7 +423,6 @@ class Dust_Container{
             Dust_grain_list[i].z_history.push_back(Dust_grain_list[i].W_vec[2]/lambda_D);
             Dust_grain_list[i].charge = charge_list.lower_bound(Dust_grain_list[i].W_vec[2])->second;
             v_squared_sum += pow(Dust_grain_list[i].calc_speed() ,2);
-
         };
         calc_temperature();
         v_squared_sum = 0;
@@ -475,6 +485,9 @@ int main(){
         vals.push_back(make_pair("X_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].x_history));
         vals.push_back(make_pair("Y_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].y_history));
         vals.push_back(make_pair("Z_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].z_history));
+        vals.push_back(make_pair("VX_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].vx_history));
+        vals.push_back(make_pair("VY_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].vy_history));
+        vals.push_back(make_pair("VZ_" + std::to_string(i), Dusty_plasma_crystal.Dust_grain_list[i].vz_history));
         speed_list.push_back(Dusty_plasma_crystal.Dust_grain_list[i].calc_speed());
     };
     vals.push_back(make_pair("Time_list", Dusty_plasma_crystal.time_list));

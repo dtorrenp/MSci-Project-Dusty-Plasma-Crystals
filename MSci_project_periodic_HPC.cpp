@@ -69,6 +69,7 @@ const double alpha_n = (4/3)*M_PI*pow(grain_R,2)*m_n*n_n0*v_Tn;//maybe 8/3
 const double alpha_i = M_PI*pow(grain_R,2)*m_i*n_i0;
 const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
 const double therm_coeff_i = sqrt(2*k_b*T_i*alpha_i);
+const double wake_safety_factor = grain_R*0.5;
 
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
     std::vector<double> c;
@@ -380,7 +381,7 @@ class Dust_Container{
             std::vector<double>p_01{r_01[0], r_01[1]};
             p_mag = v_abs(p_01);
             //std::cout << "BRAHHHH" << std::endl;
-            if((pos_1[2] < z_se) && (pos_1[2] > 2*grain_R + pos_0[2])){
+            if((pos_1[2] <  (z_se - wake_safety_factor)) && (pos_1[2] > 2*grain_R + pos_0[2])){
                 double M = combs_list[i].second.v_i_z/v_B;
                 double z_plus = std::abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
                 double z_minus = std::abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);
@@ -394,7 +395,7 @@ class Dust_Container{
                 //std::cout << "YIKES"<< std::endl;
                 //print_vector(force_c_pos_01);
             };
-            if((pos_0[2] < z_se) && (pos_0[2] > 2*grain_R + pos_1[2])){
+            if((pos_0[2] <  (z_se - wake_safety_factor)) && (pos_0[2] > 2*grain_R + pos_1[2])){
                 double M = combs_list[i].first.v_i_z/v_B;
                 double z_plus = std::abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
                 double z_minus = std::abs(r_01[2]) - p_mag*pow((pow(M,2)-1),0.5);

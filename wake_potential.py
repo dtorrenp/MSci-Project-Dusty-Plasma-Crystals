@@ -65,12 +65,12 @@ v = 0
 # v_d = v - v_i_z
 # M = v_d/C_s
 
-print(grain_R/lambda_D)
-exit()
-M_single = 1.1
+#print(grain_R/lambda_D)
+#exit()
+M_single = 1
 M = M_single
 
-near_plot = "yes"
+near_plot = "no"
 far_plot = "yes"
 electric_far_plot  = "yes"
 Force_far_plot = "yes"
