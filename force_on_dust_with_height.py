@@ -30,8 +30,11 @@ high_z = 20.0*lambda_D
 a_0_OML = -0.5
 a_0_Sheath = -2.5#intial guess for halley's method
 root = 1.0e-4#preciscion of root finding method used to get dust charge
-points = 10000.0
-
+points = 10000
+charge_list = []
+elec_list = []
+#print(low_z,high_z,points)
+#print(type(low_z), type(high_z), type(points))
 #container_dust_dist_creation = np.sqrt(container_radius/(2*lambda_D))
 z_se = 10.0*lambda_D#distance from bottom of container to the sheath edge
 k_z_restore = -2.0*phi_wall_z/(z_se**2)#WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
@@ -108,8 +111,13 @@ def calc_dust_grain_force( d_z,  low_z,  high_z):
     force_list = []
     for z in np.linspace(low_z,high_z,points):
         charge = OML_charge(z)
-        E = 2*k_z_restore*(z - z_se)
-        force = charge*E
+        charge_list.append(charge)
+        if(z <= z_se):
+            E = 2*k_z_restore*(z - z_se)
+        else:
+            E = 0
+        elec_list.append(E)
+        force = charge*E - g_z*m_D
         height_list.append(z/lambda_D)
         force_list.append(force)
     return [height_list,force_list]
@@ -129,5 +137,22 @@ plt.plot(data[0],data[1])
 plt.plot(sheathe_edge,data[1],"-" ,color='grey', linestyle='dashed')
 plt.plot(data[0],grav,"-" ,color='black', linestyle='dashed')
 plt.savefig("Figures/Force_on_dust_grain_vs_Height.png")
+
+plt.figure()
+plt.grid()
+plt.title("charge on dust grain vs Height")
+plt.xlabel("z/lambda_D")
+plt.ylabel("charge")
+plt.plot(data[0],charge_list)
+plt.savefig("Figures/Charge_on_dust_grain_vs_Height.png")
+
+plt.figure()
+plt.grid()
+plt.title("electric field on dust grain vs Height")
+plt.xlabel("z/lambda_D")
+plt.ylabel("eectric field")
+plt.plot(data[0],elec_list)
+plt.savefig("Figures/electric_field_on_dust_grain_vs_Height.png")
+
 plt.show()
     
