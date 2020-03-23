@@ -189,12 +189,12 @@ def produce_u_collisionless(Y):
 u_init = produce_u(Q_init)
 u_collisionless = produce_u_collisionless(Y_z_init)
 
-
 plt.figure()
 plt.plot(z_list, u_collisionless, label="collisionless")
-plt.plot(z_list, u_init)
+plt.plot(z_list, u_init, label="init")
+plt.title("u after 1 produce u vs collisionless")
 plt.legend()
-plt.show()
+
 
 
 """
@@ -214,7 +214,7 @@ def f_Y(Q):
     return Q
 
 def g_Q(Y, u):
-    return (np.exp(Y) + (1/u)) #Neglecting rho_d/en_s term for now which is <<1
+    return (np.exp(Y) + (1/u))#Neglecting rho_d/en_s term for now which is <<1
 
 def step_YQ(Y_0, Q_0, u_0, u_1):
     u_half = (u_0 + u_1)/2
@@ -255,7 +255,7 @@ YQ_data = [YQ_init]
 u_data = [u_init]
 YQ_data.append(YQ_0)
 i = 0
-iteration_number = 2
+iteration_number = 3
 while i < iteration_number:
     L = find_L(YQ_0[1])
     u_0 = produce_u(YQ_0[1])
@@ -270,16 +270,17 @@ while i < iteration_number:
 
 plt.figure()
 for j in np.arange(iteration_number):
-    #plt.plot(z_list, YQ_data[j][0], label="Y_" + str(j))
+    plt.plot(z_list, YQ_data[j][0], label="Y_" + str(j))
     plt.plot(z_list, YQ_data[j][1], label="Q_" + str(j))
     plt.plot(z_list, u_data[j], label="u_" + str(j))
 plt.legend()
+plt.title("y,q and u convergence")
 plt.axvline(x=L*dz)
 plt.xlim(0, 25)
 plt.grid()
-plt.show()
 
-print (YQ_data[3][0])
+
+#print (YQ_data[3][0])
 
 """
 plt.figure()
@@ -289,23 +290,4 @@ plt.axvline(x=L*dz)
 plt.show()
 """
 
-#STEP 2b: We must internally iterate by shooting different Q_init
-
-def bisection(Y_init, Q_init, u):
-    YQ = produce_YQ(Y_init, Q_init, u)
-    Y = YQ[0]
-    Q = YQ[1]
-    Q_1 = Q[0]
-    while (Q[-1] > Q_epsilon_bisection):
-        Q_0 = Q_1
-        print (Q_0)
-        if Y[-1] >= 0:
-            Q_1 = 0.1*Q_0
-        else:
-            Q_1 = 1.1*Q_0
-        YQ = produce_YQ(Y_init, Q_1, u)
-        Y = YQ[0]
-        Q = YQ[1]
-    return (Y, Q)
-
-    #STEP 3: Iterate the whole process
+plt.show()
