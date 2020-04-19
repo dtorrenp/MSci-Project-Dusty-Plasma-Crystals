@@ -25,13 +25,14 @@ epsilon_0 = 8.85*1e-12
 k_b = 1.38*1e-23
 T_e = (2*1.6*1e-19)/k_b
 T_i = (0.03*1.6*1e-19)/k_b
+T_n_a = (0.03*1.6*1e-19)/k_b
+T_n_b = (2.0*1.6*1e-19)/k_b
 lambda_de = ((epsilon_0*k_b*T_e)/(n_e0*(e_charge**2)))**0.5
 lambda_di = ((epsilon_0*k_b*T_i)/(n_i0*(e_charge**2)))**0.5
 lambda_D = (1/(1/(lambda_de**2) + 1/(lambda_di**2)))**0.5#get lambda_D
-container_height = 11*lambda_D#drop particles from this height, low so that we dont waste computational time on calculations as its falling and not interacting with sheathe
 container_radius = 25*lambda_D#set radius of contianer ie wall radius
-container_length = 5*lambda_D
-z_se = 10*lambda_D#distance from bottom of container to the sheath edge
+container_length = 20*lambda_D
+z_se = 29.1*lambda_D#distance from bottom of container to the sheath edge
 r_se = 25*lambda_D#distance from wall to the sheathe edge
 r_se_inv = container_radius - r_se
 top_container_graph_mul = 1.5
@@ -44,7 +45,7 @@ load = "no"
 boundry = "Periodic"#input("Periodic or Finite?")
 standard_plots = "yes"
 layer_plots = "no"#input("layers?")
-layers = [0.0,9.9,11]
+layers = [0,50]#[0.0,20.1,21.0,22,23.5,24.7,25.3,26.8,28.0,29.0,31.0,33.0]
 
 x_plot = "yes"
 y_plot = "yes"
@@ -52,14 +53,15 @@ z_plot = "yes"
 final_pos_plot = "yes"
 motion_plot = "yes" 
 temp_plot = "yes"
+temp_plot_log = "yes"
 speed_plot = "no"
 
 voronoi_plot = "no"
 delaunay_plot = "no"
 g_plot = "no"
-layer_final_pos_plot = "yes"
+layer_final_pos_plot = "no"
 threeD_plot = "no"#doesnt work atm
-anim = "no"
+anim = "yes"
 
 if status == "Compile":
    if boundry == "Periodic":
@@ -109,10 +111,12 @@ if str(os.path.exists(NEW_FOLDER)) == "False":
 
 #%%
 data = pd.read_csv(FILENAME)
-dust_grain_max = int( (len(data.columns))/6 - 1)
+dust_grain_max = int( (len(data.columns))/3 - 1)
+print(dust_grain_max)
 last_time_val = data["Time_list"].iloc[-1]
 y_z_se = [z_se/lambda_D]*len(data["Time_list"])
-temp_ion = [T_i]*len(data["Time_list"])
+temp_ion_a = [T_n_a]*len(data["Time_list"])
+temp_ion_b = [T_n_b]*len(data["Time_list"])
 
 #%%
 if standard_plots == "yes":
@@ -156,7 +160,7 @@ if standard_plots == "yes":
          plt.xlabel("Time")
          plt.ylabel("z/lambda_D")
          plt.plot(data["Time_list"],y_z_se, "--", color = "black")
-         plt.ylim(0,container_height/lambda_D)
+         plt.ylim(0,z_se*top_container_graph_mul/lambda_D)
          plt.grid()
          plt.savefig(NEW_FOLDER + "/Periodic_z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
@@ -191,12 +195,24 @@ if standard_plots == "yes":
          plt.figure()
          plt.title("Temperature")
          plt.plot(data["Time_list"],data["Temperature_list"])
-         plt.plot(data["Time_list"],temp_ion, "--", color = "black")
-         plt.yscale("log")
+         plt.plot(data["Time_list"],temp_ion_a, "--", color = "black")
+         plt.plot(data["Time_list"],temp_ion_b, "--", color = "black")
          plt.xlabel("Time")
          plt.ylabel("Temperature(K)")
          plt.grid()
          plt.savefig(NEW_FOLDER + "/Periodic_Temperature_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
+
+      if temp_plot_log == "yes":
+         plt.figure()
+         plt.title("Temperature")
+         plt.plot(data["Time_list"],data["Temperature_list"])
+         plt.plot(data["Time_list"],temp_ion_a, "--", color = "black")
+         plt.plot(data["Time_list"],temp_ion_b, "--", color = "black")
+         plt.yscale("log")
+         plt.xlabel("Time")
+         plt.ylabel("Temperature(K)")
+         plt.grid()
+         plt.savefig(NEW_FOLDER + "/Periodic_Temperature_log_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
       if speed_plot == "yes":
          plt.figure()
@@ -252,7 +268,7 @@ if standard_plots == "yes":
          plt.xlabel("Time")
          plt.ylabel("z/lambda_D")
          plt.plot(data["Time_list"],y_z_se, "--", color = "black")
-         plt.ylim(0,container_height/lambda_D)
+         plt.ylim(0,z_se*top_container_graph_mul/lambda_D)
          plt.grid()
          plt.savefig(NEW_FOLDER + "/Finite_z_dust_grain_max_" + str(dust_grain_max) + "_frames_" + str(len(data["Time_list"])) + ".png")
 
@@ -275,7 +291,8 @@ if standard_plots == "yes":
          plt.figure()
          plt.title("Temperature")
          plt.plot(data["Time_list"],data["Temperature_list"])
-         plt.plot(data["Time_list"],temp_ion, "--", color = "black")
+         plt.plot(data["Time_list"],temp_ion_a, "--", color = "black")
+         plt.plot(data["Time_list"],temp_ion_b, "--", color = "black")
          plt.yscale("log")
          plt.xlabel("Time")
          plt.ylabel("Temperature(K)")
@@ -394,7 +411,7 @@ if layer_plots == "yes":
                   ax.scatter(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],data["Z_" + str(i)].iloc[last_val_index], color = colour_layer)
          ax.set_xlim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
          ax.set_ylim(-container_length/(2*lambda_D),container_length/(2*lambda_D))
-         ax.set_zlim(0,top_container_graph_mul*container_height/lambda_D)
+         ax.set_zlim(0,top_container_graph_mul*z_se/lambda_D)
          ax.set_xlabel('X position')
          ax.set_ylabel('Y position')
          ax.set_zlabel('Z position')
@@ -506,7 +523,7 @@ if layer_plots == "yes":
                   ax.scatter(data["X_" + str(i)].iloc[last_val_index], data["Y_" + str(i)].iloc[last_val_index],data["Z_" + str(i)].iloc[last_val_index], color = colour_layer)
          ax.set_xlim(-container_radius/lambda_D,container_radius/lambda_D)
          ax.set_ylim(-container_radius/lambda_D,container_radius/lambda_D)
-         ax.set_zlim(0,top_container_graph_mul*container_height/lambda_D)
+         ax.set_zlim(0,top_container_graph_mul*z_se/lambda_D)
          ax.set_xlabel('X position')
          ax.set_ylabel('Y position')
          ax.set_zlabel('Z position')
@@ -538,11 +555,13 @@ if layer_plots == "yes":
          x = []
          y = []
          for i in np.arange(dust_grain_max):
-            if ( (data["Z_" + str(i)].values[last_val_index][0] >= layer_bottom ) and (data["Z_" + str(i)].values[last_val_index][0] <= layer_top)):
-               x.append(data["X_" + str(i)].iloc[v])
-               y.append(data["Y_" + str(i)].iloc[v])
+            #FOR NOW IGNROE THE LAYERS SHIT
+            #if ( (data["Z_" + str(i)].values[last_val_index][0] >= layer_bottom ) and (data["Z_" + str(i)].values[last_val_index][0] <= layer_top)):
+            x.append(data["X_" + str(i)].iloc[v])
+            y.append(data["Y_" + str(i)].iloc[v])
          time = data["Time_list"].iloc[v]
          return [x,y,time]
+
 
       def init():
          """initialize animation"""

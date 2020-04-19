@@ -14,7 +14,7 @@ g_z = 9.81#gravity
 e_charge = 1.6*1e-19#magnitude of e charge
 i_charge = 1.6*1e-19#magnitude of i charge DOES THIS NEED TO CHANGE WHEN USED IN THE ION DRAG?????
 grain_R = 7*1e-6
-m_i = 1.67*1e-27
+m_i = Z*1.67*1e-27
 m_e = 9.11*1e-31
 m_D = ((4/3)*np.pi*grain_R**3)*(1.49*1e3)#mass of the dust grain given by volume*density where the density is space dust NEED TO GET BETTER VALUE
 epsilon_0 = 8.85*1e-12
@@ -48,7 +48,6 @@ V_RF = 50 #(as quoted from Nitter)
 #dT = T/3
 dz = 1/100
 drop_height_numerical = 50
-Y_epsilon = 1e-2
 
 def produce_z_list():
     """Produces discrete z-coordinates in steps of d_z and units of Debye lengths."""
@@ -75,9 +74,8 @@ z_list = produce_z_list()
 This initial potential guess is based on Cameron's collisionless equations."""
 
 V_DC = 0.5*np.log(2*np.pi*m_e/m_i) - np.log(iv(0,V_RF)) #Produces the self-bias V_DC in both the RF case and DC case (where V_RF = 0). V in normalised units of eV/kT.
+Y_epsilon = np.abs(V_DC*1e-3)
 
-print(V_DC)
-exit()
 def f_Y_z_init(Y_z_0):
     """RK4 derivative function"""
     return (2*(np.exp(Y_z_0) + (1-2*Y_z_0)**0.5 - 2))**0.5 #Cameron (2.36)
@@ -222,7 +220,7 @@ def ion_drag(z,charge_z,v_i):#IT SHOULD DOUBEL BACK SURELY COS OF THE CHARGE FLI
     u = v_i/v_ti
     R = (charge_z*i_charge)/((4*np.pi*epsilon_0)*k_b*T_i*(1+u**2))
     beta_bar = R/lambda_D#I AM NOT USIG THE IMPORVED LAMBDA MAY BE SOEMTHIGN TO TRY OUT
-    LAMBDA = (beta_bar + 1)/(beta_bar + (grain_R/lambda_D))
+    LAMBDA = np.abs((beta_bar + 1)/(beta_bar + (grain_R/lambda_D)))
     #print(z,z_ion,charge_z,u,R,LAMBDA)
     F_i = -(2*np.pi)**0.5*grain_R**2*n*m*v_ti**2*( (np.pi/2)**0.5*erf(u/2**0.5)*(1+u**2+(1-u**-2)*(1+2*z_ion*t_ion) + 4*z_ion**2*t_ion**2*u**-2*np.log(LAMBDA)) + u**-1*(1 + 2*z_ion*t_ion+u**2 -  4*z_ion**2*t_ion**2*np.log(LAMBDA))*np.exp(-u**2/2)  )
     #F_i = -(2*np.pi)**0.5*grain_R**2*n*m*v_ti**2*(  u**-1*(1 + 2*z_ion*t_ion+u**2 -  4*z_ion**2*t_ion**2*np.log(LAMBDA))*np.exp(-u**2/2)   )

@@ -13,7 +13,7 @@
 #include <map>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 10; //dust grain max number
+const int dust_grain_max_input = 20; //dust grain max number
 const double dt_a = 1.0e-4;
 const double time_limit = 1;
 const double frame_req = 5;
@@ -43,6 +43,7 @@ const double k_b = 1.38*1e-23;
 const double mu = (m_i/m_e);//normalization used for convienience
 const double T_e = 2.0*(1.6*1e-19)/k_b;
 const double T_i = 0.03*(1.6*1e-19)/k_b;
+const double T_n = 0.03*(1.6*1e-19)/k_b;
 const double beta = T_i/T_e;
 const double lambda_de = pow(((epsilon_0*k_b*T_e)/(n_e0*(pow(e_charge,2)))),0.5);
 const double lambda_di = pow(((epsilon_0*k_b*T_i)/(n_i0*(pow(e_charge,2)))),0.5);
@@ -51,34 +52,27 @@ const double drop_height = 9.8*lambda_D;//drop particles from this height, low s
 const double container_radius = 25.0*lambda_D;//set radius of contianer ie wall radius
 const double coulomb_limit = 5;
 
-//related to finding the charge of the dust grains
-const double T = 1/(13.6*1e6);
-const double d_T = T/100;
-const double omega = (2*M_PI)/T;//TAKEN FROM NITTER PAPER 13.6M Hz
+//related to finding the charge and other set up stuff of the dust grains
 const double Y_DC = -50.0;//NITTER
-const double phi_wall_z = Y_DC; //TRY THIS FOR NOW SEE HOW IT WORKS
-const double Y_ref = 50.0;//NITTER
-const double dz_norm = 1/10000;
+const double dz_norm = 1/1000.0;
 const double dz = lambda_D*dz_norm;
-const double n_s = n_i0*exp(0.5);
-const double p_d = (dust_grain_max_input*m_D)/(M_PI*pow(container_radius,2)*drop_height);
-const double root = dz/10;//preciscion of root finding method used to get dust charge
-const double Y_epsilon = -1e-2;//VARY THIS
-
 const double upper_lim_z = 15.0*lambda_D;
-const double a_0_OML = -0.5;
+const int for_loop_max_int = upper_lim_z/dz;
+const double root = dz/10;//preciscion of root finding method used to get dust charge
+const double Y_epsilon = -1e-2;//how close we define the sheath edge
 const double a_0_Sheath = -2.5;//intial guess for halley's method
-
-//const double container_dust_dist_creation = sqrt(container_radius/(2*lambda_D));
-//const double z_se = 10.0*lambda_D; //distance of vertical sheath from bottom of container
 const double r_se = 25.0*lambda_D; //distance of radial 'sheath' from wall of container
-const double v_B = pow((3*k_b*T_e/m_i),0.5);
-const double v_Tn = pow((3*k_b*T_i/m_n),0.5);//thermal termperature of the neutrals
-const double alpha_n = (8/3)*pow(2*M_PI,0.5)*pow(grain_R,2)*m_n*n_n0*v_Tn;
-const double therm_coeff = sqrt(2*k_b*T_i*alpha_n);
+const double v_B = pow((3*k_b*T_e/m_i),0.5);//bohm velocity of sheath
+const double v_Tn = pow((3*k_b*T_n/m_n),0.5);//thermal termperature of the neutrals
+const double alpha_n = (8/3)*pow(2*M_PI,0.5)*pow(grain_R,2)*m_n*n_n0*v_Tn;//taken from shuckla
+const double therm_coeff = sqrt(2*k_b*T_n*alpha_n/dt_a);//for brownian motion
 const double wake_safety_factor = grain_R*0.5;
-//make functions for element-wise multiplication and addition of vectors
 
+
+const double k_r_restore = -2.0*phi_wall_r/pow(r_se,2);
+
+
+//make functions for element-wise multiplication and addition of vectors
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
     std::vector<double> c;
     for(int i=0; i<a.size(); i++){
@@ -179,22 +173,27 @@ class Dust_grain{
         f.push_back(W_vec_f[5]);
         //x,y components
         double radial = pow((pow(W_vec_f[0],2) + pow(W_vec_f[1],2)),0.5);
-        double rad_acc_mag = (1/m_D)*((-charge*phi_wall_r)/(r_se*(1/pow(cos(M_PI/4),2) - 1)))*(1/pow(cos((M_PI/2)*(std::abs(radial)/r_se)),2) - 1);
+        double rad_acc_mag = (charge/m_D)*k_r_restore*abs(radial);
 
         f.push_back(rad_acc_mag*(W_vec_f[0]/radial) - (alpha_n*W_vec_f[3])/m_D + a_c[0] + (therm_coeff*dist(generator))/m_D);// - (alpha_i*pow(W_vec_f[3],2))/m_D TAKE OUT ION DRAG//drag, sheathe and coloumb force and ion drag force
+        
+        std::cout <<"X_a: " <<rad_acc_mag*(W_vec_f[0]/radial) << ","<<  - (alpha_n*W_vec_f[3])/m_D << ","<<a_c[0] <<","<< + (therm_coeff*dist(generator))/m_D << std::endl;
         f.push_back(rad_acc_mag*(W_vec_f[1]/radial) - (alpha_n*W_vec_f[4])/m_D + a_c[1] + (therm_coeff*dist(generator))/m_D);
         //z component
         if (W_vec_f[2] > z_se){
+            std::cout <<"Z_a: " << -g_z<< ","<< a_c[2] << ","<<- (alpha_n*W_vec_f[5])/m_D <<","<< + (therm_coeff*dist(generator))/m_D << std::endl;
             f.push_back(-g_z + a_c[2] - (alpha_n*W_vec_f[5])/m_D  + (therm_coeff*dist(generator))/m_D);//drag, gravity, coloumb force and ion drag force
         }
         else{
+            std::cout << "Z_a: " <<charge*Sheath_E << ","<< + ion_drag/m_D<< "," <<-g_z<< ","<< a_c[2] << ","<<- (alpha_n*W_vec_f[5])/m_D <<","<< + (therm_coeff*dist(generator))/m_D << std::endl;
             f.push_back(charge*Sheath_E + ion_drag/m_D - g_z  + a_c[2] - (alpha_n*W_vec_f[5])/m_D -  + (therm_coeff*dist(generator))/m_D); 
         };
+        std::cout << f[5]<< std::endl;
         return f;
     }
 
     void step(double dt){
-        //std::cout << "step" << std::endl;
+        std::cout << "step" << std::endl;
         std::vector<double> k1 = element_mul(f_der(W_vec),dt);
         std::vector<double> k2 = element_mul(f_der(element_add(W_vec,element_mul(k1,1/2))),dt);
         std::vector<double> k3 = element_mul(f_der(element_add(W_vec,element_mul(k2,1/2))),dt);
@@ -215,7 +214,6 @@ class Dust_Container{
     std::map<double, double> v_i_list;
     std::map<double, double> charge_list;
     std::map<double, double> ion_drag_list;
-    std::vector<std::map<double,double>> time_potential_list;
     std::vector<Dust_grain> Dust_grain_list;
     std::vector<std::pair<Dust_grain&,Dust_grain&>> combs_list;
     double v_squared_sum;
@@ -225,11 +223,17 @@ class Dust_Container{
 
 	Dust_Container(int Dust_grain_max):dust_grain_max(Dust_grain_max),time_list{0},v_squared_sum{0}
     {
+        //std::cout<< "start calc setup" << std::endl;
         calc_sheath();
+        //std::cout<< "sheath done" << std::endl;
         calc_ion_vel();
+        //std::cout<< "ion vel done" << std::endl;
         calc_dust_grain_charges();
+        //std::cout<< "charge done" << std::endl;
         calc_ion_drag();
+        //std::cout<< "ion drag done" << std::endl;
         create_dust_grains();
+        //std::cout<< "create done" << std::endl;
     } 
 
     //CALCULATE THE SHEATH POTENTIAL AND ELECTRIC FIELD
@@ -251,12 +255,13 @@ class Dust_Container{
     void calc_sheath(){
         double Y = V_DC;
         double edge_switch = 0;
-        for(double i = 0; i < upper_lim_z; i+= dz){
-            Y_list.insert(std::pair<double,double> (i, Y));
-            Q_list.insert(std::pair<double,double> (i, f_Y_z_init(Y)));
+        for(int i = 0; i < for_loop_max_int; i+= 1){
+            //std::cout<< "sheath inside"<< ","<< i << std::endl;
+            Y_list.insert(std::pair<double,double> (i*dz, Y));
+            Q_list.insert(std::pair<double,double> (i*dz, f_Y_z_init(Y)));
             Y = step_Y_z_init(Y);
             if((Y > Y_epsilon) && (edge_switch == 0)){
-                z_se = i;
+                z_se = i*dz;
                 edge_switch = 1;
             }
         }
@@ -273,8 +278,9 @@ class Dust_Container{
     }
 
     void calc_ion_vel(){
-        for(double i = 0; i < upper_lim_z; i+= dz){
-            v_i_list.insert(std::pair<double,double> (i, v_i_z_calc(Y_list.at(i),i)));
+        for(int i = 0; i < for_loop_max_int; i+= 1){
+            //std::cout << i << ","<< for_loop_max_int << ","<<Y_list.at(i*dz) << std::endl;
+            v_i_list.insert(std::pair<double,double> (i*dz, v_i_z_calc(Y_list.at(i*dz),i*dz)));
         }
     }
 
@@ -315,10 +321,11 @@ class Dust_Container{
         return 4.0*M_PI*epsilon_0*grain_R*phi_grain;
     }
     void calc_dust_grain_charges(){
-        for(double i = 0; i < upper_lim_z; i+= dz){
-            charge_list.insert(std::pair<double,double> (i, OML_charge(i,charge_list.at(i))));
+        for(int i = 0; i < for_loop_max_int; i+= 1){
+            //std::cout << i << ","<< for_loop_max_int << ","<< Y_list.at(i*dz) << std::endl;
+            charge_list.insert(std::pair<double,double> (i*dz, OML_charge(i*dz, Y_list.at(i*dz))));
         }
-        std::cout << charge_list.size() << std::endl;
+        //std::cout << charge_list.size() << std::endl;
     }
 
     //CALCULATE THE ION DRAG
@@ -340,8 +347,8 @@ class Dust_Container{
     }
 
     void calc_ion_drag(){
-        for(double i = 0; i < upper_lim_z; i+= dz){
-            ion_drag_list.insert( std::pair<double,double> (i, ion_drag(i,  charge_list.at(i),   v_i_list.at(i) ) ));
+        for(int i = 0; i < for_loop_max_int; i+= 1){
+            ion_drag_list.insert( std::pair<double,double> (i*dz, ion_drag(i*dz,  charge_list.at(i*dz),   v_i_list.at(i*dz) ) ));
         }
     }
     //DONE
@@ -381,7 +388,7 @@ class Dust_Container{
                     break;
                 }
             }
-            std::cout << Dust_grain_list.size() << std::endl;
+            //std::cout << Dust_grain_list.size() << std::endl;
         } 
         for(int i = 0; i <  Dust_grain_list.size(); i++){
             Dust_grain_list[i].init_history_and_viz();
