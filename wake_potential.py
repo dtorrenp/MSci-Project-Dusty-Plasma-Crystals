@@ -66,9 +66,8 @@ v = 0
 # M = v_d/C_s
 
 #print(grain_R/lambda_D)
-#exit()
-M_single = 1
-M = M_single
+#exit(
+M = 1.2
 
 near_plot = "no"
 far_plot = "yes"
@@ -81,7 +80,6 @@ if near_plot == "yes":
     phi_near = (1/(1 - M_single**(-2)))  *  ((2*Q)/np.abs(z - z_0 - v*t))  *  np.cos((z - z_0 - v*t)/(lambda_D*(M_single**2 - 1)**0.5))
     plt.figure()
     plt.plot(z/lambda_D,phi_near)
-    plt.title(r"Electric Potential - Near field")
     plt.xlabel(r"z/$\lambda_D$")
     plt.ylabel(r"$\phi$")
     plt.grid()
@@ -103,7 +101,6 @@ if far_plot == "yes":
     circle = Circle((0, 0), radius = grain_R/lambda_D,color='black')
     ax.add_patch(circle)
     cb.set_label(r"$\rho$")
-    ax.set_title(r"Electric Potential - Far field")
     ax.set_xlabel(r"$\rho$/$\lambda_D$")
     ax.set_ylabel(r"z/$\lambda_D$")
     plt.savefig("Figures/far_field_wake.png")
@@ -134,7 +131,6 @@ if electric_far_plot == "yes":
     q = ax.quiver(p/lambda_D, z/lambda_D, E_p_far, E_z_far, E_mag)
     circle = Circle((0, 0), radius = grain_R/lambda_D,color='black')
     ax.add_patch(circle)
-    ax.set_title(r"Electric Field - Far field")
     ax.set_xlabel(r"$\rho$/$\lambda_D$")
     ax.set_ylabel(r"z/$\lambda_D$")
     plt.savefig("Figures/Electric_field_far_field_wake.png")

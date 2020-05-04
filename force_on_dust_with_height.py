@@ -6,7 +6,6 @@ from scipy.special import iv
 #CONSTANTS TO FUCK ABOUT WITH
 n_e0 = 1.0e15#electron and ion densities in bulk plasma
 n_i0 = 1.0e15
-phi_wall_z = -100.0#volts
 
 #CONSTANTS DEPENDANT ON ACTUAL PHYSICS
 Z = 18
@@ -33,7 +32,7 @@ root = 1.0e-4#preciscion of root finding method used to get dust charge
 #print(type(low_z), type(high_z), type(points))
 #container_dust_dist_creation = np.sqrt(container_radius/(2*lambda_D))
 #k_z_restore = -2.0*phi_wall_z/(z_se**2)#WIERD MINUS SIGN TO ACCOUNT FOR FACT THAT K MUST BE POSITIVE WE THINK BUT NEED TO COME BACK TO THIS
-v_B = ((3*k_b*T_e/m_i)**0.5)
+v_B = ((k_b*T_e/m_i)**0.5)
 
 #%%
 ######CHARGE
@@ -106,21 +105,26 @@ for i in np.arange(len_z_rep):
     Y_z_init[L + i] = 0
     Q_init[L + i] = 0
 
-plt.figure()
-plt.grid()
-plt.title("Electric field on dust grain vs Height")
-plt.xlabel("z/lambda_D")
-plt.ylabel("Electric field")
-plt.plot(z_list,Q_init)
-plt.savefig("Figures/Electric_field_on_dust_grain_vs_Height.png")
+# Phi_DC = []
 
-plt.figure()
-plt.grid()
-plt.title("Electric Potential on dust grain vs Height")
-plt.xlabel("z/lambda_D")
-plt.ylabel("Electric Potential")
-plt.plot(z_list,Y_z_init)
+# for i in Y_z_init:
+#     Phi_DC =  (k_b*T_e*i)/(e_charge)
+
+fig,ax = plt.subplots()
+ax.grid()
+ax.set_xlabel(r"$z/\lambda_D$")
+ax.set_ylabel(r"$\widebar{\Phi}_{DC}$")
+ax.plot(z_list,Y_z_init)
+ax.axvline(29.1,color='black', linestyle='dashed')
 plt.savefig("Figures/Electric_potential_on_dust_grain_vs_Height.png")
+
+# plt.figure()
+# plt.grid()
+# plt.xlabel(r"$z/\lambda_D$")
+# plt.ylabel(r"$\bar{\Phi_{DC}}$")
+# plt.plot(z_list,Y_z_init)
+# plt.savefig("Figures/un_norm_Electric_potential_on_dust_grain_vs_Height.png")
+
 #%%
 
 #ION VELOCITY
@@ -137,9 +141,8 @@ for i in np.arange(len(z_list)):
 
 plt.figure()
 plt.grid()
-plt.title("Ion velocity vs Height")
-plt.xlabel("z/lambda_D")
-plt.ylabel("Ion Velcocity/v_B")
+plt.xlabel(r"$z/\lambda_D$")
+plt.ylabel(r"Ion Velcocity/v_B")
 plt.plot(z_list,np.asarray(v_i_list)/v_B)
 plt.savefig("Figures/Ion_vel_norm_vs_Height.png")
 
@@ -187,23 +190,20 @@ charge_list = []
 for i in np.arange(len(z_list)):
     charge_list.append( OML_charge(Y_z_init[i])   )
 
-plt.figure()
-plt.grid()
-plt.title("charge on dust grain vs Height")
-plt.xlabel("z/lambda_D")
-plt.ylabel("charge")
-plt.plot(z_list,charge_list, label = "collisionless")
+fig2,ax2 = plt.subplots()
+ax2.grid()
+ax2.set_xlabel(r"$z/\lambda_D$")
+ax2.set_ylabel(r"$q_D/C$")
+ax2.plot(z_list,charge_list)
+ax2.axvline(29.1,color='black', linestyle='dashed')
 plt.savefig("Figures/Charge_on_dust_grain_vs_Height.png")
-plt.legend()
 
 plt.figure()
 plt.grid()
-plt.title("phiD vs phi DC")
-plt.xlabel("phi DC")
-plt.ylabel("phi D")
+plt.xlabel(r"phi DC")
+plt.ylabel(r"phi D")
 plt.plot(Y_z_init,Phi_D_norm_list)
 plt.savefig("Figures/Charge_on_dust_grain_vs_phi_DC.png")
-plt.legend()
 
 
 #%%
@@ -212,7 +212,7 @@ plt.legend()
 
 def ion_drag(z,charge_z,v_i):#IT SHOULD DOUBEL BACK SURELY COS OF THE CHARGE FLIP?
     #charge_z = 0# THE COLLECTION TERM DOMIANTES DRAMATICALLY
-    z_ion = (charge_z*i_charge/(4*np.pi*epsilon_0))*(1/(grain_R*k_b*T_e))
+    z_ion = (charge_z*e_charge/(4*np.pi*epsilon_0))*(1/((10**2)*grain_R*k_b*T_e))
     t_ion = beta
     n = n_e0 
     m = m_i
@@ -237,12 +237,12 @@ for i in np.arange(len(z_list)):
         ion_drag_list.append(ion_drag(z_list[i],charge_list[i],v_i_list[i]))
 
 #print(ion_drag_list)
-plt.figure()
-plt.grid()
-plt.title("Ion drag vs Height")
-plt.xlabel("z/lambda_D")
-plt.ylabel("Ion drag")
-plt.plot(z_list,ion_drag_list)
+fig3,ax3 = plt.subplots()
+ax3.grid()
+ax3.set_xlabel(r"$z/\lambda_D$")
+ax3.set_ylabel(r"$F_{ID}/N$")
+ax3.plot(z_list,ion_drag_list)
+ax3.axvline(29.1,color='black', linestyle='dashed')
 plt.savefig("Figures/ion_drag_on_dust_grain_vs_Height.png")
 
 #%%
@@ -256,10 +256,60 @@ grav = [9.81*m_D]*len(z_list)
 plt.figure()
 plt.grid()
 plt.title("Force on dust grain vs Height")
-plt.xlabel("z/lambda_D")
+plt.xlabel(r"$z/\lambda_D$")
 plt.ylabel("Force")
 plt.plot(z_list,force_list)
 plt.plot(z_list,grav,"-" ,color='black', linestyle='dashed')
 plt.savefig("Figures/Force_on_dust_grain_vs_Height.png")
+
+
+#%%
+
+fig,ax = plt.subplots()
+ax.grid()
+ax.set_xlabel(r"$z/\lambda_D$")
+ax.set_ylabel(r"$\widebar{\Phi}_{DC}$")
+ax.plot(z_list,Y_z_init)
+ax.axvline(29.1,color='black', linestyle='dashed')
+plt.savefig("Figures/Electric_potential_on_dust_grain_vs_Height.png")
+
+fig2,ax2 = plt.subplots()
+ax2.grid()
+ax2.set_xlabel(r"$z/\lambda_D$")
+ax2.set_ylabel(r"$q_D/C$")
+ax2.plot(z_list,charge_list)
+ax2.axvline(29.1,color='black', linestyle='dashed')
+plt.savefig("Figures/Charge_on_dust_grain_vs_Height.png")
+
+fig3,ax3 = plt.subplots()
+ax3.grid()
+ax3.set_xlabel(r"$z/\lambda_D$")
+ax3.set_ylabel(r"$F_{ID}/N$")
+ax3.plot(z_list,ion_drag_list)
+ax3.axvline(29.1,color='black', linestyle='dashed')
+plt.savefig("Figures/ion_drag_on_dust_grain_vs_Height.png")
+
+
+fig4, axs = plt.subplots(3, sharex=True)
+axs[0].grid()
+#axs[0].set_xlabel(r"$z/\lambda_D$")
+axs[0].text(0.01, 0.95, "a)", transform=axs[0].transAxes, fontsize=12, va='top')
+axs[0].set_ylabel(r"$\widebar{\Phi}_{DC}$")
+axs[0].plot(z_list,Y_z_init)
+axs[0].axvline(29.1,color='black', linestyle='dashed')
+axs[1].grid()
+#axs[1].set_xlabel(r"$z/\lambda_D$")
+axs[1].text(0.01, 0.95, "b)", transform=axs[1].transAxes, fontsize=12,  va='top')
+axs[1].set_ylabel(r"$q_D/C$")
+axs[1].plot(z_list,charge_list)
+axs[1].axvline(29.1,color='black', linestyle='dashed')
+axs[2].grid()
+axs[2].text(0.01, 0.95, "c)", transform=axs[2].transAxes, fontsize=12, va='top')
+axs[2].set_xlabel(r"$z/\lambda_D$")
+axs[2].set_ylabel(r"$F_{ID}/N$")
+axs[2].plot(z_list,ion_drag_list)
+axs[2].axvline(29.1,color='black', linestyle='dashed')
+plt.tight_layout()
+plt.savefig("Figures/tesitng.png", dpi = 1200)
 
 plt.show()

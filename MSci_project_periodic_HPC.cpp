@@ -13,17 +13,17 @@
 #include <map>
 
 //CRITICAL VALUES
-const int dust_grain_max_input = 20; //dust grain max number
+const int dust_grain_max_input = 40; //dust grain max number
 const double dt_a = 1.0e-4;
-const double frame_req = 5;
 const double V_DC = -51.4107184911;  //V_RF = 50 , rounded to 4 dp, taken from the python
-const double time_limit = 1;
-const double temp_time_limit = 2;
+const double time_limit = 50;
+const double T_n_EV_init = 0.03;
+const double n_n0 = 1.0e24; //electron number density (in bulk plasma)
+//const double temp_time_limit = 1;//time run with the new temperture is this time minus the time limit
 
 //CONSTANTS TO FUCK ABOUT WITH
 const double n_e0 = 1.0e15; //electron number density (in bulk plasma)
 const double n_i0 = 1.0e15; //ion number density (in bulk plasma)
-const double n_n0 = 1.0e24; //electron number density (in bulk plasma)
 const double Z_n = 18; //neutrals atomic number (Ar)
 const double grain_R = 7*1e-6; //dust grain radius
 const double dust_grain_density = 1.49*1e3; //dust density
@@ -39,6 +39,7 @@ const double m_n = m_i;
 const double m_D = ((4.0/3.0)*M_PI*pow(grain_R,3))*dust_grain_density;//m_D of the dust grain given by volume*density where the density is space dust NEED TO GET BETTER VALUE
 const double epsilon_0 = 8.85*1e-12;
 const double k_b = 1.38*1e-23;
+const double c = 3.00*1e8;
 const double mu = (m_i/m_e);//normalization used for convienience
 const double T_e = 2.0*(1.6*1e-19)/k_b;
 const double T_i = 0.03*(1.6*1e-19)/k_b;
@@ -58,17 +59,35 @@ const double root = dz/10;//preciscion of root finding method used to get dust c
 const double Y_epsilon = V_DC*1e-3;//how close we define the sheath edge
 const double a_0_Sheath = -2.5;//intial guess for halley's method
 const double r_se = 25.0*lambda_D; //distance of radial 'sheath' from wall of container
-const double v_B = pow((3*k_b*T_e/m_i),0.5);//bohm velocity of sheath
+const double v_B = pow((k_b*T_e/m_i),0.5);//bohm velocity of sheath
 const double wake_safety_factor = grain_R*0.5;
 
-const double T_n_EV_init = 0.03;
-const double T_n_EV_final = 2.0;
+
+//const double T_n_EV_final = 2.0;
 const int temp_list_max = 100;
 
 std::vector<double> element_mul(const std::vector<double>& a,double cst){
     std::vector<double> c;
     for(int i=0; i<a.size(); i++){
         c.push_back(a[i]*cst);
+    }
+    return c;
+}
+
+std::vector<double> element_add_cst(const std::vector<double>& a,double cst){
+    std::vector<double> c;
+    for(int i=0; i<a.size(); i++){
+        c.push_back(a[i] + cst);
+    }
+    return c;
+}
+
+std::vector<std::vector<double>> special_element_mul(const std::vector<std::vector<double>>& a,double cst){
+    std::vector<std::vector<double>> c;
+    for(int i=0; i<a.size(); i++){
+        for(int v=0; v<a[0].size(); v++){
+            c[i].push_back(a[i][v]*cst);
+        }
     }
     return c;
 }
@@ -97,7 +116,6 @@ double v_average(const std::vector<double>& a){
     return c/a.size();
 }
 
-
 void print_vector(const std::vector<double>& a){
     std::cout << "[";
     for(int i=0; i<a.size(); i++){
@@ -114,7 +132,7 @@ class Dust_grain{
 
     private:
     std::default_random_engine generator;
-    std::normal_distribution<double> dist;
+    std::normal_distribution<double> distN;
     public:
     std::vector<double> W_vec;
     std::vector<double> a_c;
@@ -133,7 +151,7 @@ class Dust_grain{
     double alpha_n;//taken from shuckla
     double therm_coeff;//for brownian motion
 
-    Dust_grain(double Z_se):z_se(Z_se),a_c{0,0,0},generator(std::default_random_engine(clock())),dist(std::normal_distribution<double>(0.0,1))
+    Dust_grain(double Z_se, double seed):z_se(Z_se),a_c{0,0,0},generator(seed),distN(0.0,1.0)
     {
         prod_W_vec();
     }
@@ -177,20 +195,20 @@ class Dust_grain{
         f.push_back(-(alpha_n*W_vec_f[3])/m_D + a_c[0] + (therm_coeff*brownian[0])/m_D);//drag, sheathe and coloumb force and ion drag force
         f.push_back(-(alpha_n*W_vec_f[4])/m_D + a_c[1] + (therm_coeff*brownian[1])/m_D);
 
-        //std::cout << "z_se vs z:" << W_vec_f[2]/z_se << std::endl;
+        //z component
         if (W_vec_f[2] < z_se){
+            //std::cout << charge*Sheath_E/m_D  << "," << ion_drag/m_D << "," << - (alpha_n*W_vec_f[5])/m_D << "," << (therm_coeff*brownian[2])/m_D << std::endl;
             f.push_back(charge*Sheath_E/m_D + ion_drag/m_D - g_z  + a_c[2] - (alpha_n*W_vec_f[5])/m_D  + (therm_coeff*brownian[2])/m_D);//drag, sheathe, gravity, coloumb force and ion drag force;
         }
         else{
             //std::cout << "drag vs therm: " << - (alpha_n*W_vec_f[5])/m_D << "," << (therm_coeff*brownian[2])/m_D << std::endl;
             f.push_back(-g_z + a_c[2] - (alpha_n*W_vec_f[5])/m_D  + (therm_coeff*brownian[2])/m_D);//drag, gravity, coloumb force and ion drag force
         };
-        //print_vector(f);
         return f;
     }
 
     void step(double dt){
-        std::vector<double> brownian {dist(generator),dist(generator),dist(generator)};
+        std::vector<double> brownian {distN(generator),distN(generator),distN(generator)};
 
         std::vector<double> k1 = element_mul(f_der(W_vec,brownian),dt);
         std::vector<double> k2 = element_mul(f_der(element_add(W_vec,element_mul(k1,1/2)),brownian),dt);
@@ -356,6 +374,7 @@ class Dust_Container{
     void calc_dust_grain_charges(){
         for(int i = 0; i < for_loop_max_int; i+= 1){
             //std::cout << i << ","<< for_loop_max_int << ","<< Y_list.at(i*dz) << std::endl;
+            //std::cout << "charge: " << OML_charge(i*dz, Y_list.at(i*dz)) << std::endl;
             charge_list.insert(std::pair<double,double> (i*dz, OML_charge(i*dz, Y_list.at(i*dz))));
         }
         //std::cout << charge_list.size() << std::endl;
@@ -365,7 +384,7 @@ class Dust_Container{
     double ion_drag(double z,double charge_z,double v_i){//IT SHOULD DOUBEL BACK SURELY COS OF THE CHARGE FLIP?
         if(z < z_se){
                         //THE COLLECTION TERM DOMIANTES DRAMATICALLY
-            double z_ion = (charge_z*i_charge/(4*M_PI*epsilon_0))*(1/(grain_R*k_b*T_e));
+            double z_ion = (charge_z*e_charge/(4*M_PI*epsilon_0))*(1/(1e2*grain_R*k_b*T_e));
             double v_ti = -pow(k_b*T_i/m_i,0.5);
             double u = v_i/v_ti;
             double R = (charge_z*i_charge)/((4*M_PI*epsilon_0)*k_b*T_i*(1+pow(u,2)));
@@ -434,7 +453,7 @@ class Dust_Container{
     void create_dust_grains(){
         double r_01_mag;
         while(Dust_grain_list.size() < dust_grain_max){
-            Dust_grain_list.push_back(Dust_grain(z_se));
+            Dust_grain_list.push_back(Dust_grain(z_se,rand()));
             std::vector<double> pos_1 (Dust_grain_list.back().W_vec.begin(),Dust_grain_list.back().W_vec.begin() + 3);
             for(int v = 0; v <  Dust_grain_list.size() - 1; v++){
                 std::vector<double> pos_0 (Dust_grain_list[v].W_vec.begin(),Dust_grain_list[v].W_vec.begin() + 3);
@@ -492,15 +511,13 @@ class Dust_Container{
             r_01_mag = v_abs(r_01);
 
             if (r_01_mag > coulomb_limit*lambda_D){
-                continue;//NOT SURE IF THIS IS NECESSARY
+                continue;
             }
 
-            force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
-            //std::cout << "BRAH"<< std::endl;
-            //print_vector(force_c);
             std::vector<double>p_01{r_01[0], r_01[1]};
             p_mag = v_abs(p_01);
-            //std::cout << "BRAHHHH" << std::endl;
+            force_c = element_mul(r_01,-((combs_list[i].first.charge*combs_list[i].second.charge)/(4*M_PI*epsilon_0))* exp((grain_R/lambda_D) - (r_01_mag/lambda_D)) * (1/(pow(r_01_mag,3)) + 1/(lambda_D*(pow(r_01_mag,2)))));
+
             if((pos_1[2] <  (z_se - wake_safety_factor)) && (pos_1[2] > 2*grain_R + pos_0[2])){
                 double M = std::abs(combs_list[i].second.v_i/v_B);
                 double z_plus = std::abs(r_01[2]) + p_mag*pow((pow(M,2)-1),0.5);
@@ -509,11 +526,10 @@ class Dust_Container{
                 double B = cos((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
                 double C = sin((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
                 double D = sin((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
-                double F_p_far = -1*combs_list[i].first.charge*(2*combs_list[i].second.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(   (1/p_mag)*(-0.5)*((1/z_plus)*(A - 1/pow(2,0.5)) + (1/z_minus)*(B - 1/pow(2,0.5))) -pow(z_plus,-2)*pow((pow(M,2)-1),0.5)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C/lambda_D) + pow(z_minus,-2)*pow((pow(M,2)-1),0.5)*(B - 1/pow(2,0.5)) + (1/z_minus)*(D/lambda_D) );
-                double F_z_far = -1*combs_list[i].first.charge*(2*combs_list[i].second.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(  -pow(z_plus,-2)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C*(1/lambda_D)/pow((pow(M,2)-1),0.5)) - pow(z_minus,-2)*(B - 1/pow(2,0.5)) - (1/z_minus)*(D*(1/lambda_D)/pow((pow(M,2)-1),0.5))      );
+                double F_p_far = ((1/(4*M_PI*epsilon_0))*1e-2)*-1*combs_list[i].first.charge*(2*combs_list[i].second.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(   (1/p_mag)*(-0.5)*((1/z_plus)*(A - 1/pow(2,0.5)) + (1/z_minus)*(B - 1/pow(2,0.5))) -pow(z_plus,-2)*pow((pow(M,2)-1),0.5)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C/lambda_D) + pow(z_minus,-2)*pow((pow(M,2)-1),0.5)*(B - 1/pow(2,0.5)) + (1/z_minus)*(D/lambda_D) );
+                double F_z_far = ((1/(4*M_PI*epsilon_0))*1e-2)*-1*combs_list[i].first.charge*(2*combs_list[i].second.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(  -pow(z_plus,-2)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C*(1/lambda_D)/pow((pow(M,2)-1),0.5)) - pow(z_minus,-2)*(B - 1/pow(2,0.5)) - (1/z_minus)*(D*(1/lambda_D)/pow((pow(M,2)-1),0.5))      );
+                //std::cout << "DUDUDe: " << F_p_far << "," << F_p_far*(1/(4*M_PI*epsilon_0)) << "," << F_p_far/m_D << "," << (F_p_far*(1/(4*M_PI*epsilon_0)))/m_D << ","<< (F_p_far*(1/(4*M_PI*epsilon_0))*1e-2)/m_D  << std::endl;
                 force_c_pos_01 = {(p_01[0]/p_mag)*F_p_far, (p_01[1]/p_mag)*F_p_far, F_z_far};
-                //std::cout << "YIKES"<< std::endl;
-                //print_vector(force_c_pos_01);
             };
             if((pos_0[2] <  (z_se - wake_safety_factor)) && (pos_0[2] > 2*grain_R + pos_1[2])){
                 double M = std::abs(combs_list[i].first.v_i/v_B);
@@ -523,11 +539,10 @@ class Dust_Container{
                 double B = cos((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
                 double C = sin((z_plus/lambda_D)/pow((pow(M,2)-1),0.5) - M_PI/4);
                 double D = sin((z_minus/lambda_D)/pow((pow(M,2)-1),0.5) + M_PI/4);
-                double F_p_far = -1*combs_list[i].second.charge*(2*combs_list[i].first.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(   (1/p_mag)*(-0.5)*((1/z_plus)*(A - 1/pow(2,0.5)) + (1/z_minus)*(B - 1/pow(2,0.5))) -pow(z_plus,-2)*pow((pow(M,2)-1),0.5)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C/lambda_D) + pow(z_minus,-2)*pow((pow(M,2)-1),0.5)*(B - 1/pow(2,0.5)) + (1/z_minus)*(D/lambda_D) );
-                double F_z_far = -1*combs_list[i].second.charge*(2*combs_list[i].first.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(  -pow(z_plus,-2)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C*(1/lambda_D)/pow((pow(M,2)-1),0.5)) - pow(z_minus,-2)*(B - 1/pow(2,0.5)) - (1/z_minus)*(D*(1/lambda_D)/pow((pow(M,2)-1),0.5))      );
+                double F_p_far = ((1/(4*M_PI*epsilon_0))*1e-2)*-1*combs_list[i].second.charge*(2*combs_list[i].first.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(   (1/p_mag)*(-0.5)*((1/z_plus)*(A - 1/pow(2,0.5)) + (1/z_minus)*(B - 1/pow(2,0.5))) -pow(z_plus,-2)*pow((pow(M,2)-1),0.5)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C/lambda_D) + pow(z_minus,-2)*pow((pow(M,2)-1),0.5)*(B - 1/pow(2,0.5)) + (1/z_minus)*(D/lambda_D) );
+                double F_z_far = ((1/(4*M_PI*epsilon_0))*1e-2)*-1*combs_list[i].second.charge*(2*combs_list[i].first.charge/(1 - pow(M,-2))) * (pow(lambda_D/(2*M_PI*p_mag),0.5))*(  -pow(z_plus,-2)*(A - 1/pow(2,0.5)) - (1/z_plus)*(C*(1/lambda_D)/pow((pow(M,2)-1),0.5)) - pow(z_minus,-2)*(B - 1/pow(2,0.5)) - (1/z_minus)*(D*(1/lambda_D)/pow((pow(M,2)-1),0.5))      );
+                //std::cout << "BRAH: " << F_p_far << "," << F_p_far*(1/(4*M_PI*epsilon_0)) << "," << F_p_far/m_D << "," << (F_p_far*(1/(4*M_PI*epsilon_0)))/m_D << ","<< (F_p_far*(1/(4*M_PI*epsilon_0))*1e-2)/m_D   << std::endl;
                 force_c_pos_10 = {(-p_01[0]/p_mag)*F_p_far, (-p_01[1]/p_mag)*F_p_far, F_z_far};
-                //std::cout << "STONKS"<< std::endl;
-                //print_vector(force_c_pos_10);
             };
 
             combs_list[i].first.a_c = element_add(combs_list[i].first.a_c,element_add(element_mul(force_c,1/m_D), element_mul(force_c_pos_01,1/m_D)));
@@ -537,7 +552,9 @@ class Dust_Container{
 
     void next_frame(double dt){
     //The big daddy of the code, this functions loops over advancing the simulation by a time step dt
-        //std::cout << "frame" << std::endl;
+
+        //std::cout << "SICKCKCC:" << std::endl;
+
         inter_particle_ca();
 		time_list.push_back(time_list.back() + dt);
 
@@ -589,22 +606,25 @@ int main(){
 
     Dust_Container Dusty_plasma_crystal = Dust_Container(dust_grain_max_input);
 
+    std::cout << "m_D" << m_D << std::endl;
+
     std::cout << "INJECT DUST" << std::endl;
 
     while (Dusty_plasma_crystal.time_list.back() < time_limit){
         Dusty_plasma_crystal.next_frame(dt_a);
     }
 
-    Dusty_plasma_crystal.update_neutral_temp(T_n_EV_final);//change the neutral temperature
+    //Dusty_plasma_crystal.update_neutral_temp(T_n_EV_final);//change the neutral temperature
 
-    while (Dusty_plasma_crystal.time_list.back() < temp_time_limit){
-        Dusty_plasma_crystal.next_frame(dt_a);
-    }
+    //while (Dusty_plasma_crystal.time_list.back() < temp_time_limit){
+        //Dusty_plasma_crystal.next_frame(dt_a);
+    //}
 
     std::cout << "Simulation finished" << std::endl;
     /////////////////////
 
     std::string filename = "HPC_Data/Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    filename += "_Tn_EV_" + std::to_string(T_n_EV_init);
     filename += "_Final_Temperature_" + std::to_string(Dusty_plasma_crystal.temperature_history.back());
     filename += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size());
     filename += ".csv";
@@ -623,10 +643,10 @@ int main(){
     write_csv(filename, vals);
     std::cout << "FILENAME:" << filename << std::endl;
 
-
     //////////////
 
     std::string filename_end = "HPC_Data/Final_Periodic_Dust_grain_max_" + std::to_string(dust_grain_max_input);
+    filename += "_Tn_EV_" + std::to_string(T_n_EV_init);
     filename_end += "_Final_Temperature_" + std::to_string(Dusty_plasma_crystal.temperature_history.back());
     filename_end += "_frames_" + std::to_string(Dusty_plasma_crystal.time_list.size());
     filename_end += ".csv";
